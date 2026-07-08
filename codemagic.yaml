@@ -1,0 +1,59 @@
+# ══════════════════════════════════════════════════════════════════
+#  codemagic.yaml — بناء تطبيق جاسر لـ iOS سحابياً (بدون Mac)
+#
+#  قبل الاستخدام:
+#   1. ولّد مجلد iOS على ويندوز:
+#        flutter create --org com.jasir --platforms=ios,android .
+#   2. ارفع المشروع كامل إلى مستودع Git (GitHub/GitLab/Bitbucket)
+#   3. في Codemagic: اربط المستودع + اربط حساب Apple Developer
+#      (Team Settings → Integrations → Apple Developer Portal / App Store Connect)
+#   4. عدّل BUNDLE_ID أدناه ليطابق التطبيق في App Store Connect
+# ══════════════════════════════════════════════════════════════════
+workflows:
+  ios-jasir:
+    name: جاسر iOS
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        BUNDLE_ID: "com.jasir.app"       # عدّله ليطابق App Store Connect
+        APP_STORE_APPLE_ID: 0000000000    # (اختياري) Apple ID للتطبيق للنشر على TestFlight
+      # التوقيع التلقائي عبر مفتاح App Store Connect API المربوط في Codemagic
+      ios_signing:
+        distribution_type: app_store       # أو ad_hoc للتثبيت على أجهزة محددة
+        bundle_identifier: com.jasir.app    # نفس BUNDLE_ID أعلاه
+    scripts:
+      - name: تثبيت التبعيات
+        script: flutter pub get
+
+      # ── حرج: iOS يمنع HTTP افتراضياً (ATS). سيرفرك على http://135.181.44.53
+      #    نضيف استثناءً للنطاق حتى يتصل التطبيق بالـ API بدون HTTPS
+      - name: إضافة استثناء ATS للسيرفر (HTTP)
+        script: |
+          PLIST="ios/Runner/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains dict" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains:135.181.44.53 dict" "$PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains:135.181.44.53:NSExceptionAllowsInsecureHTTPLoads bool true" "$PLIST" 2>/dev/null || \
+          /usr/libexec/PlistBuddy -c "Set :NSAppTransportSecurity:NSExceptionDomains:135.181.44.53:NSExceptionAllowsInsecureHTTPLoads true" "$PLIST"
+          echo "تم ضبط ATS"
+
+      - name: إعداد التوقيع
+        script: |
+          xcode-project use-profiles
+
+      - name: بناء IPA
+        script: |
+          flutter build ipa --release \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      # (اختياري) نشر تلقائي على TestFlight بعد نجاح البناء
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
