@@ -11,6 +11,7 @@ class AppEvent {
   String? buildingNo;
   String? roomNo;
   String? notes;
+  String apptType; // in_person | remote
 
   AppEvent({
     this.id,
@@ -25,6 +26,7 @@ class AppEvent {
     this.buildingNo,
     this.roomNo,
     this.notes,
+    this.apptType = 'in_person',
   });
 
   factory AppEvent.fromJson(Map<String, dynamic> j) => AppEvent(
@@ -40,6 +42,7 @@ class AppEvent {
         buildingNo: j['building_no'],
         roomNo: j['room_no'],
         notes: j['notes'],
+        apptType: j['appt_type'] ?? 'in_person',
       );
 
   Map<String, dynamic> toJson() => {
@@ -54,5 +57,6 @@ class AppEvent {
         'buildingNo': buildingNo,
         'roomNo': roomNo,
         'notes': notes,
+        'apptType': apptType,
       };
 }

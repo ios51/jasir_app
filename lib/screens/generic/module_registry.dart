@@ -75,13 +75,23 @@ class ModuleRegistry {
     icon: Icons.family_restroom_outlined,
     path: '/api/v1/family',
     titleOf: (m) => '${m['nickname'] ?? m['first_name'] ?? m['name'] ?? 'فرد'}',
-    subtitleOf: (m) => m['relation']?.toString() ?? '',
+    subtitleOf: (m) {
+      final parts = <String>[];
+      if (m['relation'] != null) parts.add('${m['relation']}');
+      if (m['national_id'] != null) parts.add('🆔 ${m['national_id']}');
+      return parts.join('  •  ');
+    },
     fields: const [
       FieldDef('firstName', 'الاسم الأول', required: true),
       FieldDef('secondName', 'الاسم الثاني'),
       FieldDef('thirdName', 'الاسم الثالث'),
       FieldDef('nickname', 'اللقب'),
       FieldDef('relation', 'صلة القرابة', hint: 'ابن، أخ، والدة...'),
+      FieldDef('nationalId', 'رقم الهوية', type: FieldType.number),
+      FieldDef('nameEn', 'الاسم بالإنجليزي', hint: 'Jaber Ali'),
+      FieldDef('dobGreg', 'تاريخ الميلاد (ميلادي)', type: FieldType.date),
+      FieldDef('dobHijri', 'تاريخ الميلاد (هجري)', hint: '1436-07-14'),
+      FieldDef('passportNo', 'رقم الجواز'),
     ],
   );
 

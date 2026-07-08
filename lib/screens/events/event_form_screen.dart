@@ -24,6 +24,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
   DateTime? _date;
   TimeOfDay? _time;
   int _notifyBefore = 60;
+  String _apptType = 'in_person';
   bool _saving = false;
 
   bool get _isEdit => widget.event != null;
@@ -39,6 +40,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
     _room = TextEditingController(text: e?.roomNo ?? '');
     _notes = TextEditingController(text: e?.notes ?? '');
     _notifyBefore = e?.notifyBefore ?? 60;
+    _apptType = e?.apptType ?? 'in_person';
     if (e?.eventDate != null) {
       _date = DateTime.tryParse(e!.eventDate!);
     }
@@ -86,6 +88,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
       buildingNo: _building.text.trim(),
       roomNo: _room.text.trim(),
       notes: _notes.text.trim(),
+      apptType: _apptType,
     );
     try {
       if (_isEdit) {
@@ -136,6 +139,16 @@ class _EventFormScreenState extends State<EventFormScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _apptType,
+              decoration: const InputDecoration(labelText: 'نوع الموعد', border: OutlineInputBorder()),
+              items: const [
+                DropdownMenuItem(value: 'in_person', child: Text('🏥 حضوري')),
+                DropdownMenuItem(value: 'remote', child: Text('📞 عن بُعد')),
+              ],
+              onChanged: (v) => setState(() => _apptType = v ?? 'in_person'),
             ),
             const SizedBox(height: 12),
             TextFormField(
