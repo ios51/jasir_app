@@ -5,6 +5,7 @@ import 'tasks/tasks_list_screen.dart';
 import 'generic/module_registry.dart';
 import 'generic/generic_list_screen.dart';
 import 'generic/field_def.dart';
+import 'settings/morning_settings_screen.dart';
 
 /// شاشة "الخدمات" — شبكة تعرض كل خدمات جاسر الـ 12، كل بطاقة تفتح شاشتها.
 class ServicesGridScreen extends StatelessWidget {
@@ -40,6 +41,8 @@ class ServicesGridScreen extends StatelessWidget {
           () => GenericListScreen(def: ModuleRegistry.sizes)),
       _ServiceTile('روابطي', Icons.link_outlined, Colors.lightBlue,
           () => GenericListScreen(def: ModuleRegistry.links)),
+      _ServiceTile('رسالة الصباح', Icons.wb_sunny_outlined, Colors.deepOrange,
+          () => const MorningSettingsScreen()),
     ];
 
     return GridView.count(
