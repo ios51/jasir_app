@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/settings_service.dart';
+import '../../services/notification_service.dart';
+import '../../services/notification_sync.dart';
 
 /// شاشة إعدادات رسالة الصباح — تفعيل/إيقاف، وقت الإرسال، مختصر/كامل،
 /// مفاتيح الأقسام الثمانية، نص خاص، ومعاينة مباشرة.
@@ -250,6 +252,25 @@ class _MorningSettingsScreenState extends State<MorningSettingsScreen> {
                         icon: const Icon(Icons.visibility_outlined),
                         label: const Text('معاينة رسالة الصباح الآن'),
                         onPressed: _preview,
+                      ),
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.notifications_active_outlined),
+                        label: const Text('فعّل التنبيهات وجرّب تنبيهاً الآن'),
+                        onPressed: () async {
+                          await NotificationService.requestPermission();
+                          await NotificationService.showNow(
+                            777,
+                            '🌅 جاسر',
+                            'التنبيهات تعمل — بتوصلك مواعيدك ومهامك ورسالة الصباح.',
+                          );
+                          NotificationSync.run();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('أرسلت تنبيهاً تجريبياً وحدّثت التذكيرات')),
+                            );
+                          }
+                        },
                       ),
                       const SizedBox(height: 24),
                     ],
