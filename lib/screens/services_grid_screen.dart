@@ -27,7 +27,7 @@ class ServicesGridScreen extends StatelessWidget {
           () => GenericListScreen(def: ModuleRegistry.documents)),
       _ServiceTile('العائلة', Icons.family_restroom_outlined, Colors.teal,
           () => GenericListScreen(def: ModuleRegistry.family)),
-      _ServiceTile('جهات الاتصال', Icons.contacts_outlined, Colors.blueGrey,
+      _ServiceTile('أطباء ومستشفيات', Icons.local_hospital_outlined, Colors.blueGrey,
           () => GenericListScreen(def: ModuleRegistry.contacts)),
       _ServiceTile('سياراتي', Icons.directions_car_outlined, Colors.blue,
           () => GenericListScreen(def: ModuleRegistry.cars)),

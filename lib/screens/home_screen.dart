@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import 'login_screen.dart';
 import 'chat_screen.dart';
 import 'services_grid_screen.dart';
+import 'settings/app_settings_screen.dart';
 
 /// الشاشة الرئيسية: تبويبان — المحادثة المباشرة مع جاسر، وشبكة كل الخدمات.
 class HomeScreen extends StatefulWidget {
@@ -30,6 +31,13 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text(_index == 0 ? 'جاسر' : 'الخدمات'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'الإعدادات',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AppSettingsScreen()),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'تسجيل الخروج',

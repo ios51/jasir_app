@@ -3,12 +3,16 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/api_client.dart';
 import 'services/notification_service.dart';
 import 'services/notification_sync.dart';
+import 'theme/app_theme.dart';
+import 'theme/theme_controller.dart';
+import 'widgets/jasir_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   NotificationService.init();
+  ThemeController.instance.load();
   runApp(const JasirApp());
 }
 
@@ -17,21 +21,29 @@ class JasirApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'جاسر',
-      debugShowCheckedModeBanner: false,
-      locale: const Locale('ar'),
-      supportedLocales: const [Locale('ar'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      theme: ThemeData(
-        primarySwatch: Colors.teal,
-        useMaterial3: true,
+    final tc = ThemeController.instance;
+    return AnimatedBuilder(
+      animation: tc,
+      builder: (context, _) => MaterialApp(
+        title: 'جاسر',
+        debugShowCheckedModeBanner: false,
+        locale: const Locale('ar'),
+        supportedLocales: const [Locale('ar'), Locale('en')],
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        theme: AppTheme.light(),
+        darkTheme: AppTheme.dark(),
+        themeMode: tc.mode,
+        builder: (ctx, child) => MediaQuery(
+          data: MediaQuery.of(ctx)
+              .copyWith(textScaler: TextScaler.linear(tc.fontScale)),
+          child: child ?? const SizedBox.shrink(),
+        ),
+        home: const _StartupGate(),
       ),
-      home: const _StartupGate(),
     );
   }
 }
@@ -62,7 +74,7 @@ class _StartupGateState extends State<_StartupGate> {
   @override
   Widget build(BuildContext context) {
     if (_loggedIn == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(body: Center(child: JasirSpinner(size: 56)));
     }
     return _loggedIn! ? const HomeScreen() : const LoginScreen();
   }

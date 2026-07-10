@@ -96,8 +96,8 @@ class ModuleRegistry {
   );
 
   static final ModuleDef contacts = ModuleDef(
-    title: 'جهات الاتصال',
-    icon: Icons.contacts_outlined,
+    title: 'أطباء ومستشفيات',
+    icon: Icons.local_hospital_outlined,
     path: '/api/v1/contacts',
     titleOf: (m) => '${m['nickname'] ?? m['real_name'] ?? 'جهة'}',
     subtitleOf: (m) {
@@ -107,12 +107,11 @@ class ModuleRegistry {
       return parts.join('  •  ');
     },
     fields: const [
-      FieldDef('nickname', 'الاسم/اللقب', required: true),
-      FieldDef('realName', 'الاسم الكامل'),
-      FieldDef('relationship', 'العلاقة'),
-      FieldDef('whatsapp', 'رقم واتساب', type: FieldType.number),
-      FieldDef('snapchat', 'سناب شات'),
-      FieldDef('telegram', 'تيليجرام'),
+      FieldDef('nickname', 'الاسم', required: true, hint: 'د. خالد، مستشفى الملك فهد...'),
+      FieldDef('realName', 'الاسم الكامل / الجهة'),
+      FieldDef('relationship', 'النوع', hint: 'طبيب، مستشفى، صيدلية، مزوّد خدمة'),
+      FieldDef('whatsapp', 'رقم واتساب/جوال', type: FieldType.number),
+      FieldDef('telegram', 'وسيلة أخرى'),
     ],
   );
 
