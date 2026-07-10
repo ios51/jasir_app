@@ -29,13 +29,14 @@ workflows:
       - name: إعداد التوقيع (إنشاء الشهادة والبروفايل تلقائياً)
         script: |
           keychain initialize
-          # مفتاح خاص جديد — لازم لإنشاء شهادة التوزيع لأول مرة
+          # مفتاح خاص جديد — لازم لإنشاء شهادة التوزيع وحفظها كـ p12
           openssl genrsa -out /tmp/dist_key.pem 2048
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --certificate-key=@file:/tmp/dist_key.pem \
             --create
-          keychain add-certificates --certificate-key=@file:/tmp/dist_key.pem
+          # يلتقط ملفات p12 التي حفظها fetch-signing-files ويضيفها للسلسلة
+          keychain add-certificates
           xcode-project use-profiles
 
       - name: بناء IPA
