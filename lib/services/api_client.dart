@@ -31,20 +31,51 @@ class ApiClient {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const String _tokenKey = 'jasir_token';
   static const String _userIdKey = 'jasir_user_id';
+  static const String _lastActiveKey = 'jasir_last_active';
+
+  /// مهلة الخمول: يُطلب تسجيل الدخول من جديد بعد 6 ساعات من عدم استخدام التطبيق.
+  static const Duration sessionIdleTimeout = Duration(hours: 6);
 
   Dio get dio => _dio;
 
   Future<void> saveSession(String token, String userId) async {
     await _storage.write(key: _tokenKey, value: token);
     await _storage.write(key: _userIdKey, value: userId);
+    await touch();
   }
 
   Future<String?> getToken() => _storage.read(key: _tokenKey);
 
-  Future<bool> isLoggedIn() async => (await getToken()) != null;
+  /// يسجّل آخر لحظة استخدام (يُستدعى عند فتح/استئناف التطبيق والتفاعل معه).
+  Future<void> touch() => _storage.write(
+        key: _lastActiveKey,
+        value: DateTime.now().millisecondsSinceEpoch.toString(),
+      );
+
+  /// هل مضى أكثر من مهلة الخمول على آخر استخدام؟
+  Future<bool> isSessionExpired() async {
+    final raw = await _storage.read(key: _lastActiveKey);
+    if (raw == null) return false; // ما في ختم بعد → لا نُخرِج
+    final last = int.tryParse(raw);
+    if (last == null) return false;
+    final gap = DateTime.now().millisecondsSinceEpoch - last;
+    return gap > sessionIdleTimeout.inMilliseconds;
+  }
+
+  /// مُسجّل الدخول = يملك توكن ولم تنتهِ مهلة الخمول. عند صلاحيته نجدّد الختم.
+  Future<bool> isLoggedIn() async {
+    if ((await getToken()) == null) return false;
+    if (await isSessionExpired()) {
+      await logout();
+      return false;
+    }
+    await touch();
+    return true;
+  }
 
   Future<void> logout() async {
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _userIdKey);
+    await _storage.delete(key: _lastActiveKey);
   }
 }

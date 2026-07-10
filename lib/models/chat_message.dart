@@ -24,4 +24,18 @@ class ChatMessage {
   bool get hasMedia => mediaBytes != null && mediaMimetype != null;
   bool get isImage => mediaMimetype?.startsWith('image/') == true;
   bool get isPdf => mediaMimetype == 'application/pdf';
+
+  /// للحفظ على الجهاز — نحفظ النص والاتجاه والوقت فقط (بدون بايتات الوسائط
+  /// حتى لا تتضخّم الذاكرة)؛ رسالة الوسائط تُحفظ كسطر نصّي بوصفها.
+  Map<String, dynamic> toJson() => {
+        't': (hasMedia && text.isEmpty) ? (mediaFilename ?? '📎 مرفق') : text,
+        'me': isMe,
+        'ts': time.toIso8601String(),
+      };
+
+  factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
+        text: (j['t'] as String?) ?? '',
+        isMe: (j['me'] as bool?) ?? false,
+        time: DateTime.tryParse((j['ts'] as String?) ?? ''),
+      );
 }

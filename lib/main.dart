@@ -9,6 +9,8 @@ import 'widgets/jasir_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   NotificationService.init();
@@ -16,8 +18,50 @@ void main() {
   runApp(const JasirApp());
 }
 
-class JasirApp extends StatelessWidget {
+class JasirApp extends StatefulWidget {
   const JasirApp({super.key});
+
+  @override
+  State<JasirApp> createState() => _JasirAppState();
+}
+
+class _JasirAppState extends State<JasirApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // سجّل لحظة مغادرة التطبيق (بداية عدّ الخمول)
+      ApiClient.instance.touch();
+    } else if (state == AppLifecycleState.resumed) {
+      _checkIdleTimeout();
+    }
+  }
+
+  /// عند العودة للتطبيق: لو مرّت أكثر من 6 ساعات على آخر استخدام → تسجيل خروج.
+  Future<void> _checkIdleTimeout() async {
+    final hasToken = (await ApiClient.instance.getToken()) != null;
+    if (!hasToken) return;
+    if (await ApiClient.instance.isSessionExpired()) {
+      await ApiClient.instance.logout();
+      rootNavigatorKey.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (route) => false,
+      );
+    } else {
+      ApiClient.instance.touch();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,6 +69,7 @@ class JasirApp extends StatelessWidget {
     return AnimatedBuilder(
       animation: tc,
       builder: (context, _) => MaterialApp(
+        navigatorKey: rootNavigatorKey,
         title: 'جاسر',
         debugShowCheckedModeBanner: false,
         locale: const Locale('ar'),
@@ -48,7 +93,7 @@ class JasirApp extends StatelessWidget {
   }
 }
 
-/// يقرر أول شاشة تظهر: تسجيل الدخول أو الشاشة الرئيسية، حسب وجود جلسة محفوظة.
+/// يقرر أول شاشة تظهر: تسجيل الدخول أو الشاشة الرئيسية، حسب وجود جلسة صالحة.
 class _StartupGate extends StatefulWidget {
   const _StartupGate();
 

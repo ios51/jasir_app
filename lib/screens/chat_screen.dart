@@ -7,6 +7,7 @@ import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_message.dart';
 import '../services/chat_service.dart';
+import '../services/chat_store.dart';
 
 /// شاشة محادثة مباشرة مع جاسر — نفس تجربة واتساب بالضبط، بس داخل التطبيق.
 /// تدعم: نص، تسجيل صوت (المايك)، ورفع صور/PDF ليقرأها جاسر ويحفظ بياناتها.
@@ -34,6 +35,28 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _sending = false;
   bool _recording = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadHistory();
+  }
+
+  Future<void> _loadHistory() async {
+    final saved = await ChatStore.load();
+    if (saved.isNotEmpty && mounted) {
+      setState(() {
+        _messages
+          ..clear()
+          ..addAll(saved);
+      });
+      _scrollToBottom();
+    } else {
+      _persist(); // احفظ رسالة الترحيب أول مرة
+    }
+  }
+
+  void _persist() => ChatStore.save(_messages);
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -54,6 +77,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _messages.add(ChatMessage(text: text, isMe: true));
       _sending = true;
     });
+    _persist();
     _controller.clear();
     _scrollToBottom();
     try {
@@ -216,6 +240,7 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       }
     });
+    _persist();
   }
 
   Future<void> _openMedia(ChatMessage m) async {
@@ -234,6 +259,7 @@ class _ChatScreenState extends State<ChatScreen> {
   void _appendError(String text) {
     if (!mounted) return;
     setState(() => _messages.add(ChatMessage(text: text, isMe: false)));
+    _persist();
   }
 
   @override
@@ -247,6 +273,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _bubble(ChatMessage m) {
     final isMe = m.isMe;
+    final cs = Theme.of(context).colorScheme;
+    // ألوان تتبع الثيم (فاتح/داكن) — تحلّ مشكلة النص غير الظاهر في المود الداكن.
+    final bg = isMe ? cs.primaryContainer : cs.primary;
+    final fg = isMe ? cs.onPrimaryContainer : cs.onPrimary;
     return Align(
       alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
@@ -254,7 +284,7 @@ class _ChatScreenState extends State<ChatScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
-          color: isMe ? Colors.teal.shade50 : Colors.teal,
+          color: bg,
           borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
@@ -267,7 +297,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: Text(
                   m.text,
                   textAlign: TextAlign.right,
-                  style: TextStyle(color: isMe ? Colors.black87 : Colors.white, fontSize: 15),
+                  style: TextStyle(color: fg, fontSize: 15),
                 ),
               ),
           ],
@@ -367,10 +397,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     textAlign: TextAlign.right,
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => _send(),
+                    // لون النص يتبع الثيم حتى يظهر في المود الداكن
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
                       hintText: 'اكتب رسالتك لجاسر...',
                       filled: true,
-                      fillColor: Colors.grey.shade100,
+                      fillColor: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withOpacity(0.08)
+                          : Colors.grey.shade100,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                     ),
@@ -390,7 +424,10 @@ class _ChatScreenState extends State<ChatScreen> {
                 IconButton.filled(
                   onPressed: _sending ? null : _send,
                   icon: const Icon(Icons.send),
-                  style: IconButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+                  style: IconButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  ),
                 ),
               ],
             ),

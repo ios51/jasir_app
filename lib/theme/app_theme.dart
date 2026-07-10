@@ -40,7 +40,7 @@ class AppTheme {
     return base.copyWith(
       textTheme: GoogleFonts.tajawalTextTheme(base.textTheme),
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.primary,
+        backgroundColor: teal, // نفس لون أيقونة جاسر في المودين
         foregroundColor: onPrimary,
         elevation: 0,
         centerTitle: false,

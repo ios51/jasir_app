@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import '../theme/app_theme.dart';
 import 'otp_screen.dart';
 
 /// شاشة إدخال رقم الجوال لبدء تسجيل الدخول (يُرسل رمز التحقق عبر واتساب).
@@ -42,49 +44,107 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final muted = cs.onSurfaceVariant;
     return Scaffold(
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Icon(Icons.smart_toy_outlined, size: 72, color: Colors.teal),
-              const SizedBox(height: 16),
-              const Text(
-                'مرحباً بك في جاسر',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              const SizedBox(height: 24),
+              // شعار جاسر — شمس مشرقة فوق دائرة Teal
+              Center(
+                child: Container(
+                  width: 108,
+                  height: 108,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [AppTheme.tealBright, AppTheme.teal],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppTheme.teal.withOpacity(0.35),
+                        blurRadius: 22,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.wb_sunny_rounded,
+                      size: 54, color: AppTheme.goldBright),
+                ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'أدخل رقم جوالك المسجّل في بوت جاسر عبر واتساب، وسنرسل لك رمز تحقق مباشرة على واتساب.',
+              const SizedBox(height: 20),
+              Text(
+                'جاسر',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54),
+                style: GoogleFonts.amiri(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w700,
+                  color: cs.onSurface,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'مساعدك الشخصي اللي ما ينسى',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w600, color: cs.primary),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'مواعيدك، أدويتك، عائلتك، وتفاصيل يومك — كلها محفوظة ومنظّمة في مكان واحد، وجاسر يذكّرك فيها قبل لا تفوتك. 🌅',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 15, height: 1.6, color: muted),
               ),
               const SizedBox(height: 32),
+              Text(
+                'ابدأ برقم جوالك المسجّل في جاسر',
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w600, color: muted),
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 textAlign: TextAlign.center,
+                style: TextStyle(color: cs.onSurface, fontSize: 18, letterSpacing: 1.5),
                 decoration: const InputDecoration(
                   hintText: '05xxxxxxxx',
                   border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone),
+                  prefixIcon: Icon(Icons.phone_outlined),
                 ),
               ),
+              const SizedBox(height: 6),
+              Text(
+                'يوصلك رمز تحقّق على واتساب خلال ثوانٍ. 🔒 بياناتك تبقى لك وحدك.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.5, color: muted),
+              ),
               if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!, style: const TextStyle(color: Colors.red), textAlign: TextAlign.center),
+                const SizedBox(height: 10),
+                Text(_error!,
+                    style: TextStyle(color: cs.error),
+                    textAlign: TextAlign.center),
               ],
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _loading ? null : _submit,
-                style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16)),
                 child: _loading
-                    ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('إرسال رمز التحقق'),
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text('ابدأ — أرسل رمز التحقق',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
