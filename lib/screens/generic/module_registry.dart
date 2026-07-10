@@ -133,6 +133,8 @@ class ModuleRegistry {
       FieldDef('year', 'سنة الصنع', type: FieldType.number),
       FieldDef('color', 'اللون'),
       FieldDef('plate', 'رقم اللوحة'),
+      FieldDef('chassisNumber', 'رقم الشاصي (الهيكل)'),
+      FieldDef('vin', 'الرقم التسلسلي (VIN)'),
       FieldDef('odometer', 'قراءة العداد', type: FieldType.number),
       FieldDef('registrationExpiry', 'انتهاء الاستمارة', type: FieldType.date),
       FieldDef('inspectionExpiry', 'انتهاء الفحص', type: FieldType.date),
