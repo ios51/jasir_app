@@ -1,13 +1,15 @@
 # ══════════════════════════════════════════════════════════════════
-#  codemagic.yaml — بناء تطبيق جاسر لـ iOS + نشر TestFlight (توقيع صريح)
+#  codemagic.yaml — بناء تطبيق جاسر لـ iOS + نشر TestFlight
+#  (التوقيع بالطريقة الرسمية الموثّقة: ios_signing block)
 #
-#  المتطلبات (مكتملة):
-#   • Codemagic → Integrations → App Store Connect: مفتاح باسم "jasir_asc" (App Manager)
-#   • Apple Developer → Identifiers: App ID com.jasir.jasirApp مسجّل
-#   • App Store Connect → التطبيق منشأ بنفس الـBundle ID
+#  المتطلبات (مرة واحدة في Codemagic → Team settings → codemagic.yaml settings):
+#   • Integrations → Developer Portal: مفتاح App Store Connect باسم "jasir_asc"
+#   • Code signing identities → iOS certificates → Generate certificate:
+#       شهادة Apple Distribution (باستخدام مفتاح jasir_asc) — تُخزَّن في Codemagic
+#   • Apple: App ID com.jasir.jasirApp مسجّل، والتطبيق منشأ في App Store Connect
 #
-#  التوقيع هنا صريح: fetch-signing-files --create يُنشئ الشهادة والبروفايل
-#  تلقائياً إن لم يوجدا (أمتن من الاعتماد على التوقيع الضمني).
+#  عند البناء: ios_signing يجلب الشهادة المخزّنة ويُنشئ بروفايل App Store
+#  تلقائياً للـBundle ID (لا حاجة لسكربتات keychain — Codemagic يعملها).
 # ══════════════════════════════════════════════════════════════════
 workflows:
   ios-jasir:
@@ -17,6 +19,9 @@ workflows:
     integrations:
       app_store_connect: jasir_asc
     environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.jasir.jasirApp
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -26,18 +31,8 @@ workflows:
       - name: تثبيت التبعيات
         script: flutter pub get
 
-      - name: إعداد التوقيع (إنشاء الشهادة والبروفايل تلقائياً)
-        script: |
-          keychain initialize
-          # مفتاح خاص جديد — لازم لإنشاء شهادة التوزيع وحفظها كـ p12
-          openssl genrsa -out /tmp/dist_key.pem 2048
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --certificate-key=@file:/tmp/dist_key.pem \
-            --create
-          # يلتقط ملفات p12 التي حفظها fetch-signing-files ويضيفها للسلسلة
-          keychain add-certificates
-          xcode-project use-profiles
+      - name: إعداد بروفايلات التوقيع
+        script: xcode-project use-profiles
 
       - name: بناء IPA
         script: |
