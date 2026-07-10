@@ -66,5 +66,13 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>يحتاج جاسر الوصول إلى صورك لإرفاق الوثائق والمستندات في محادثتك.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>يحتاج جاسر الكاميرا لتصوير الوثائق والمستندات وإرسالها.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>يحتاج جاسر الميكروفون لتسجيل الرسائل الصوتية في المحادثة.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>يستخدم جاسر موقعك لتحسين تذكيرات المواعيد والخدمات القريبة عند الحاجة.</string>
 </dict>
 </plist>
