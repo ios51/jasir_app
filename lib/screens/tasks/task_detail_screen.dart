@@ -149,7 +149,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 const SizedBox(height: 8),
                 Text('التقدم: ${t.progress}%'),
                 const SizedBox(height: 4),
-                Text(t.startType == 'scheduled' && t.startDate != null ? '🗓 يبدأ: ${t.startDate}' : '🗓 فورية'),
+                Text(t.startType == 'scheduled' && t.startDate != null ? 'يبدأ: ${t.startDate}' : 'يبدأ: فوري'),
                 Text(t.endType == 'deadline' && t.dueDate != null ? '⏳ الموعد النهائي: ${t.dueDate}' : '⏳ بدون موعد نهائي'),
                 const Divider(height: 32),
                 Row(

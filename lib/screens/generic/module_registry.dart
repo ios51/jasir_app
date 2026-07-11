@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'field_def.dart';
 import '../cars/car_service_log_screen.dart';
 
@@ -275,6 +276,18 @@ class ModuleRegistry {
       FieldDef('category', 'التصنيف'),
       FieldDef('description', 'وصف', type: FieldType.multiline),
     ],
+    itemActionIcon: Icons.open_in_new,
+    itemActionTooltip: 'فتح الرابط',
+    itemAction: (ctx, m) async {
+      final raw = (m['url'] ?? '').toString().trim();
+      if (raw.isEmpty) return;
+      final uri = Uri.parse(raw.startsWith('http') ? raw : 'https://$raw');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else if (ctx.mounted) {
+        ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('تعذر فتح الرابط')));
+      }
+    },
   );
 
   /// كل الموديولات العامة القابلة للعرض عبر شاشة "الخدمات".

@@ -29,20 +29,25 @@ class AppEvent {
     this.apptType = 'in_person',
   });
 
+  static int? _int(dynamic v) =>
+      v == null ? null : (v is int ? v : int.tryParse(v.toString()));
+  static String? _str(dynamic v) => v == null ? null : v.toString();
+
+  // قراءة مرنة: تتحمّل أي اختلاف في نوع القيمة القادمة من القاعدة (نص/رقم).
   factory AppEvent.fromJson(Map<String, dynamic> j) => AppEvent(
-        id: j['id'] as int?,
-        title: j['title'] ?? '',
-        eventDate: j['event_date'],
-        eventTime: j['event_time'],
-        location: j['location'],
-        locationUrl: j['location_url'],
-        notifyBefore: j['notify_before'] ?? 60,
-        personName: j['person_name'],
-        doctorName: j['doctor_name'],
-        buildingNo: j['building_no'],
-        roomNo: j['room_no'],
-        notes: j['notes'],
-        apptType: j['appt_type'] ?? 'in_person',
+        id: _int(j['id']),
+        title: _str(j['title']) ?? '',
+        eventDate: _str(j['event_date']),
+        eventTime: _str(j['event_time']),
+        location: _str(j['location']),
+        locationUrl: _str(j['location_url']),
+        notifyBefore: _int(j['notify_before']) ?? 60,
+        personName: _str(j['person_name']),
+        doctorName: _str(j['doctor_name']),
+        buildingNo: _str(j['building_no']),
+        roomNo: _str(j['room_no']),
+        notes: _str(j['notes']),
+        apptType: _str(j['appt_type']) ?? 'in_person',
       );
 
   Map<String, dynamic> toJson() => {

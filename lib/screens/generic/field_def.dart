@@ -45,6 +45,10 @@ class ModuleDef {
   final Widget Function(BuildContext context, Map<String, dynamic> item)? itemScreen;
   final IconData? itemScreenIcon;
   final String? itemScreenTooltip;
+  // إجراء عميل مباشر على العنصر (مثل فتح رابط) — يظهر كزر
+  final IconData? itemActionIcon;
+  final String? itemActionTooltip;
+  final void Function(BuildContext context, Map<String, dynamic> item)? itemAction;
 
   const ModuleDef({
     required this.title,
@@ -60,6 +64,9 @@ class ModuleDef {
     this.itemScreen,
     this.itemScreenIcon,
     this.itemScreenTooltip,
+    this.itemActionIcon,
+    this.itemActionTooltip,
+    this.itemAction,
   });
 }
 

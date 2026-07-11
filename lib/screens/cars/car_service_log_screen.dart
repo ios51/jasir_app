@@ -120,7 +120,7 @@ class _CarServiceLogScreenState extends State<CarServiceLogScreen> {
                                 .where((e) => e != null && e.toString().isNotEmpty)
                                 .join(' — ');
                             final sub = <String>[];
-                            if (it['service_date'] != null) sub.add('📅 ${it['service_date']}');
+                            if (it['service_date'] != null) sub.add('التاريخ: ${it['service_date']}');
                             if (it['odometer'] != null && it['odometer'] != 0) sub.add('🛣 ${it['odometer']} كم');
                             if (wshop.isNotEmpty) sub.add('🔧 $wshop');
                             if (it['oil_type'] != null && it['oil_type'].toString().isNotEmpty) {

@@ -1,7 +1,7 @@
 name: jasir_app
 description: تطبيق جاسر — المساعد الشخصي الذكي (موديول المواعيد والتذكيرات والمهام)
 publish_to: 'none'
-version: 0.1.4+9
+version: 0.1.4+10
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -34,6 +34,8 @@ dependency_overrides:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icon/jasir_icon.png
 
 # أيقونة التطبيق تُولَّد وقت البناء من الصورة المصدر (Codemagic يملك الملف كاملاً)
 flutter_launcher_icons:

@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/api_client.dart';
 import 'services/notification_service.dart';
 import 'services/notification_sync.dart';
+import 'services/chat_prefs.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 import 'widgets/jasir_spinner.dart';
@@ -15,6 +16,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   NotificationService.init();
   ThemeController.instance.load();
+  ChatPrefs.load();
   runApp(const JasirApp());
 }
 

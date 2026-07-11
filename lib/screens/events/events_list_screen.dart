@@ -80,15 +80,29 @@ class _EventsListScreenState extends State<EventsListScreen> {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, i) {
                 final e = items[i];
+                final cs = Theme.of(context).colorScheme;
+                Widget line(IconData ic, String t) => Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Row(children: [
+                        Icon(ic, size: 14, color: cs.primary),
+                        const SizedBox(width: 5),
+                        Expanded(child: Text(t, style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13))),
+                      ]),
+                    );
                 return Card(
                   child: ListTile(
                     title: Text(e.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text([
-                      if (e.eventDate != null) '📅 ${e.eventDate}${e.eventTime != null ? ' - ${e.eventTime}' : ''}',
-                      if (e.location != null && e.location!.isNotEmpty) '📍 ${e.location}',
-                      if (e.doctorName != null && e.doctorName!.isNotEmpty) '🩺 د. ${e.doctorName}',
-                    ].join('\n')),
-                    isThreeLine: true,
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (e.eventDate != null)
+                          line(Icons.calendar_today, '${e.eventDate}${e.eventTime != null ? ' - ${e.eventTime}' : ''}'),
+                        if (e.location != null && e.location!.isNotEmpty)
+                          line(Icons.place_outlined, e.location!),
+                        if (e.doctorName != null && e.doctorName!.isNotEmpty)
+                          line(Icons.medical_services_outlined, 'د. ${e.doctorName}'),
+                      ],
+                    ),
                     onTap: () => _openForm(event: e),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline, color: Colors.redAccent),

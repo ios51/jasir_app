@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_message.dart';
 import '../services/chat_service.dart';
 import '../services/chat_store.dart';
+import '../services/chat_prefs.dart';
 
 /// شاشة محادثة مباشرة مع جاسر — نفس تجربة واتساب بالضبط، بس داخل التطبيق.
 /// تدعم: نص، تسجيل صوت (المايك)، ورفع صور/PDF ليقرأها جاسر ويحفظ بياناتها.
@@ -35,10 +36,25 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _sending = false;
   bool _recording = false;
 
+  static const String _welcomeText =
+      'أهلاً بك! أنا جاسر 🤖\nاكتب لي أي شي تحتاجه، أو أرسل رسالة صوتية، أو صورة/PDF لوثيقة عشان أقرأها وأحفظ بياناتها.';
+
   @override
   void initState() {
     super.initState();
     _loadHistory();
+    ChatPrefs.clearSignal.addListener(_onClearRequested);
+  }
+
+  void _onClearRequested() {
+    if (!mounted) return;
+    setState(() {
+      _messages
+        ..clear()
+        ..add(ChatMessage(text: _welcomeText, isMe: false));
+    });
+    ChatStore.clear();
+    _persist();
   }
 
   Future<void> _loadHistory() async {
@@ -264,6 +280,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    ChatPrefs.clearSignal.removeListener(_onClearRequested);
     _controller.dispose();
     _scrollController.dispose();
     _recSub?.cancel();
@@ -363,7 +380,11 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
         Expanded(
-          child: ListView.builder(
+          child: ValueListenableBuilder<String>(
+            valueListenable: ChatPrefs.background,
+            builder: (context, bgId, _) => Container(
+              decoration: ChatPrefs.decoration(bgId),
+              child: ListView.builder(
             controller: _scrollController,
             padding: const EdgeInsets.symmetric(vertical: 12),
             itemCount: _messages.length + (_sending ? 1 : 0),
@@ -379,6 +400,8 @@ class _ChatScreenState extends State<ChatScreen> {
               }
               return _bubble(_messages[i]);
             },
+          ),
+            ),
           ),
         ),
         SafeArea(

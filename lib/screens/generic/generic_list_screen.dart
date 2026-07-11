@@ -112,6 +112,12 @@ class _GenericListScreenState extends State<GenericListScreen> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (def.itemAction != null)
+                          IconButton(
+                            icon: Icon(def.itemActionIcon ?? Icons.open_in_new, color: Colors.teal),
+                            tooltip: def.itemActionTooltip ?? 'فتح',
+                            onPressed: () => def.itemAction!(context, item),
+                          ),
                         if (def.itemScreen != null)
                           IconButton(
                             icon: Icon(def.itemScreenIcon ?? Icons.build_outlined, color: Colors.teal),

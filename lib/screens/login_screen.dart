@@ -55,28 +55,28 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 24),
-              // شعار جاسر — شمس مشرقة فوق دائرة Teal
+              // شعار جاسر الرسمي (الأيقونة التقنية) — مقصوص بحواف مستديرة لإخفاء زوايا الصورة
               Center(
                 child: Container(
-                  width: 108,
-                  height: 108,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [AppTheme.tealBright, AppTheme.teal],
-                    ),
+                    borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.teal.withOpacity(0.35),
-                        blurRadius: 22,
-                        offset: const Offset(0, 8),
+                        color: AppTheme.teal.withOpacity(0.30),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.wb_sunny_rounded,
-                      size: 54, color: AppTheme.goldBright),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(28),
+                    child: Image.asset(
+                      'assets/icon/jasir_icon.png',
+                      width: 116,
+                      height: 116,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
