@@ -91,16 +91,16 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'مساعدك الشخصي اللي ما ينسى',
+                'مساعدك اللي ما ينساك',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600, color: cs.primary),
+                    fontSize: 17, fontWeight: FontWeight.w700, color: cs.primary),
               ),
               const SizedBox(height: 18),
               Text(
-                'مواعيدك، أدويتك، عائلتك، وتفاصيل يومك — كلها محفوظة ومنظّمة في مكان واحد، وجاسر يذكّرك فيها قبل لا تفوتك. 🌅',
+                'أنا أتذكّر مواعيدك وأدويتك وعائلتك ومهامك، وأنبّهك بها في وقتها المناسب — وأنت عِش يومك وبالك مرتاح. 🌅',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 15, height: 1.6, color: muted),
+                style: TextStyle(fontSize: 15.5, height: 1.7, color: muted),
               ),
               const SizedBox(height: 32),
               Text(

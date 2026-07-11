@@ -41,6 +41,10 @@ class ModuleDef {
   final String emptyText;
   // أفعال إضافية على العنصر (زر) مثل "أخذت الجرعة" / "سدد"
   final List<ModuleAction> actions;
+  // شاشة فرعية للعنصر (مثل سجل صيانة السيارة) — يظهر زر يفتحها
+  final Widget Function(BuildContext context, Map<String, dynamic> item)? itemScreen;
+  final IconData? itemScreenIcon;
+  final String? itemScreenTooltip;
 
   const ModuleDef({
     required this.title,
@@ -53,6 +57,9 @@ class ModuleDef {
     this.canDelete = true,
     this.emptyText = 'لا توجد عناصر — اضغط + للإضافة',
     this.actions = const [],
+    this.itemScreen,
+    this.itemScreenIcon,
+    this.itemScreenTooltip,
   });
 }
 

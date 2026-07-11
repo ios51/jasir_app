@@ -112,6 +112,14 @@ class _GenericListScreenState extends State<GenericListScreen> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (def.itemScreen != null)
+                          IconButton(
+                            icon: Icon(def.itemScreenIcon ?? Icons.build_outlined, color: Colors.teal),
+                            tooltip: def.itemScreenTooltip ?? 'سجل',
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute(builder: (ctx) => def.itemScreen!(ctx, item)),
+                            ),
+                          ),
                         ...def.actions.map((a) => IconButton(
                               icon: Icon(a.icon, color: Colors.teal),
                               tooltip: a.label,

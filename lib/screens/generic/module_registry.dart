@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'field_def.dart';
+import '../cars/car_service_log_screen.dart';
 
 /// سجل كل موديولات جاسر — كل تعريف يولّد شاشة قائمة + نموذج تلقائياً.
 class ModuleRegistry {
@@ -140,6 +141,12 @@ class ModuleRegistry {
       FieldDef('inspectionExpiry', 'انتهاء الفحص', type: FieldType.date),
       FieldDef('insuranceExpiry', 'انتهاء التأمين', type: FieldType.date),
     ],
+    itemScreen: (ctx, m) => CarServiceLogScreen(
+      carId: m['id'] as int,
+      carName: (m['name'] ?? m['make'] ?? 'سيارة').toString(),
+    ),
+    itemScreenIcon: Icons.build_outlined,
+    itemScreenTooltip: 'سجل الصيانة',
   );
 
   static final ModuleDef debts = ModuleDef(
