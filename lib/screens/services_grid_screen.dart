@@ -7,6 +7,7 @@ import 'generic/generic_list_screen.dart';
 import 'settings/morning_settings_screen.dart';
 import 'sizes/size_categories_screen.dart';
 import 'shopping/shopping_groups_screen.dart';
+import 'documents/documents_screen.dart';
 
 /// شاشة "الخدمات" — شبكة بطاقات محايدة بأيقونات ملوّنة (وفق ملف الهوية):
 /// اللون للأيقونة فقط، البطاقة محايدة، عنوان + وصف مختصر.
@@ -30,8 +31,8 @@ class ServicesGridScreen extends StatelessWidget {
           Icons.monitor_heart_outlined, const Color(0xFFC05B91), () => GenericListScreen(def: ModuleRegistry.measurements)),
       _ServiceTile('جدولي والمحاضرات', 'جدولك الأسبوعي والمحاضرات',
           Icons.calendar_view_week_outlined, const Color(0xFF7B61D1), () => GenericListScreen(def: ModuleRegistry.schedule)),
-      _ServiceTile('وثائقي', 'وثائقك ومستنداتك المهمة',
-          Icons.description_outlined, const Color(0xFF8B6C61), () => GenericListScreen(def: ModuleRegistry.documents)),
+      _ServiceTile('وثائقي', 'رفع واستعراض وثائقك',
+          Icons.description_outlined, const Color(0xFF8B6C61), () => const DocumentsScreen()),
       _ServiceTile('الديون', 'ديونك ومستحقاتك',
           Icons.account_balance_wallet_outlined, const Color(0xFF39A96B), () => GenericListScreen(def: ModuleRegistry.debts)),
       _ServiceTile('مشترياتي', 'قوائم مشتركة + الأسعار',
