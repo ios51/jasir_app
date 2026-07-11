@@ -1,7 +1,7 @@
 name: jasir_app
 description: تطبيق جاسر — المساعد الشخصي الذكي (موديول المواعيد والتذكيرات والمهام)
 publish_to: 'none'
-version: 0.1.4+12
+version: 0.1.4+13
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -18,6 +18,9 @@ dependencies:
   provider: ^6.1.1
   record: ^5.1.2
   file_picker: ^8.1.2
+  image_picker: ^1.0.7
+  open_filex: ^4.3.4
+  path_provider: ^2.1.2
   url_launcher: ^6.2.5
   flutter_local_notifications: ^17.2.4
   timezone: ^0.9.4
