@@ -31,6 +31,9 @@ workflows:
       - name: تثبيت التبعيات
         script: flutter pub get
 
+      - name: توليد أيقونة التطبيق
+        script: dart run flutter_launcher_icons
+
       - name: إعداد بروفايلات التوقيع
         script: xcode-project use-profiles
 

@@ -274,9 +274,9 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _bubble(ChatMessage m) {
     final isMe = m.isMe;
     final cs = Theme.of(context).colorScheme;
-    // ألوان تتبع الثيم (فاتح/داكن) — تحلّ مشكلة النص غير الظاهر في المود الداكن.
-    final bg = isMe ? cs.primaryContainer : cs.primary;
-    final fg = isMe ? cs.onPrimaryContainer : cs.onPrimary;
+    // وفق الهوية: فقاعة المستخدم بلون جاسر الأساسي، وفقاعة جاسر سطح محايد بحدّ.
+    final bg = isMe ? cs.primary : cs.surface;
+    final fg = isMe ? cs.onPrimary : cs.onSurface;
     return Align(
       alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
       child: Container(
@@ -285,7 +285,8 @@ class _ChatScreenState extends State<ChatScreen> {
         constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
         decoration: BoxDecoration(
           color: bg,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
+          border: isMe ? null : Border.all(color: cs.outline),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -402,11 +403,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     decoration: InputDecoration(
                       hintText: 'اكتب رسالتك لجاسر...',
                       filled: true,
-                      fillColor: Theme.of(context).brightness == Brightness.dark
-                          ? Colors.white.withOpacity(0.08)
-                          : Colors.grey.shade100,
+                      fillColor: Theme.of(context).colorScheme.surface,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.outline)),
+                      enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide(color: Theme.of(context).colorScheme.outline)),
                     ),
                   ),
                 ),
