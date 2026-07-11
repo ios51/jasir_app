@@ -211,15 +211,28 @@ class _SizeCategoriesScreenState extends State<SizeCategoriesScreen> {
                 child: Text('≈ $conv', style: TextStyle(color: cs.primary, fontSize: 12.5)),
               ),
             if (it['notes'] != null && it['notes'].toString().isNotEmpty)
-              Text('📝 ${it['notes']}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
+              Text('ملاحظة: ${it['notes']}', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
           ],
         ),
+        onTap: () => _editItem(it),
         trailing: IconButton(
           icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
           onPressed: () => _deleteItem(it),
         ),
       ),
     );
+  }
+
+  Future<void> _editItem(Map<String, dynamic> it) async {
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: _AddItemSheet(categoryId: widget.parentId!, categoryType: widget.categoryType, existing: it),
+      ),
+    );
+    if (ok == true) _load();
   }
 
   static String _typeName(String t) => const {
@@ -300,7 +313,8 @@ class _AddCategorySheetState extends State<_AddCategorySheet> {
 class _AddItemSheet extends StatefulWidget {
   final int categoryId;
   final String categoryType;
-  const _AddItemSheet({required this.categoryId, required this.categoryType});
+  final Map<String, dynamic>? existing;
+  const _AddItemSheet({required this.categoryId, required this.categoryType, this.existing});
   @override
   State<_AddItemSheet> createState() => _AddItemSheetState();
 }
@@ -325,11 +339,34 @@ class _AddItemSheetState extends State<_AddItemSheet> {
           MapEntry('other', 'أخرى'),
         ]
       : const [
-          MapEntry('length', 'طول/بُعد'), MapEntry('dimensions', 'أبعاد غرفة'), MapEntry('other', 'أخرى'),
+          MapEntry('length', 'قياس واحد'),
+          MapEntry('dimensions', 'طول × عرض (+ارتفاع)'),
+          MapEntry('other', 'أخرى'),
         ];
 
   @override
-  void initState() { super.initState(); _type = _types.first.key; }
+  void initState() {
+    super.initState();
+    final e = widget.existing;
+    if (e == null) { _type = _types.first.key; return; }
+    final t = e['size_type']?.toString();
+    _type = (t != null && _types.any((x) => x.key == t)) ? t : _types.first.key;
+    _label.text = e['label']?.toString() ?? '';
+    _notes.text = e['notes']?.toString() ?? '';
+    if (e['unit'] != null) _unit = e['unit'].toString();
+    if (e['gender'] != null) _gender = e['gender'].toString();
+    _w.text = e['width']?.toString() ?? '';
+    _h.text = e['height']?.toString() ?? '';
+    _d.text = e['depth']?.toString() ?? '';
+    final val = e['size_value']?.toString() ?? '';
+    if (t == 'bra') {
+      final m = RegExp(r'^(\d+)(.*)$').firstMatch(val);
+      _value.text = m?.group(1) ?? val;
+      _cup.text = m?.group(2) ?? '';
+    } else {
+      _value.text = val;
+    }
+  }
 
   @override
   void dispose() {
@@ -367,7 +404,11 @@ class _AddItemSheetState extends State<_AddItemSheet> {
         if (_type == 'shoe') body['gender'] = _gender;
         if (['height', 'waist', 'length', 'weight'].contains(_type)) body['unit'] = _unit;
       }
-      await ApiClient.instance.dio.post('/api/v1/sizes', data: body);
+      if (widget.existing != null) {
+        await ApiClient.instance.dio.put('/api/v1/sizes/${widget.existing!['id']}', data: body);
+      } else {
+        await ApiClient.instance.dio.post('/api/v1/sizes', data: body);
+      }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) { setState(() => _saving = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('تعذر الحفظ: $e'))); }

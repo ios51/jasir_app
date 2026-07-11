@@ -37,7 +37,10 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _recording = false;
 
   static const String _welcomeText =
-      'أهلاً بك! أنا جاسر 🤖\nاكتب لي أي شي تحتاجه، أو أرسل رسالة صوتية، أو صورة/PDF لوثيقة عشان أقرأها وأحفظ بياناتها.';
+      'يسعد أوقاتك أبو جاسر يالغالي 🌅\n'
+      'سكرتيرك جاسر في خدمتك.\n'
+      'مواعيدك وأدويتك ومهامك محفوظة عندي، وأنبّهك بها في وقتها — وأنت عِش يومك وبالك مرتاح.\n'
+      'أمرني إيش أخدمك فيه؟';
 
   @override
   void initState() {
@@ -294,32 +297,45 @@ class _ChatScreenState extends State<ChatScreen> {
     // وفق الهوية: فقاعة المستخدم بلون جاسر الأساسي، وفقاعة جاسر سطح محايد بحدّ.
     final bg = isMe ? cs.primary : cs.surface;
     final fg = isMe ? cs.onPrimary : cs.onSurface;
+    final bubble = Container(
+      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: isMe ? null : Border.all(color: cs.outline),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (m.hasMedia) _mediaContent(m),
+          if (m.text.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: m.hasMedia ? 8 : 0),
+              child: Text(m.text, textAlign: TextAlign.right, style: TextStyle(color: fg, fontSize: 15)),
+            ),
+        ],
+      ),
+    );
+    if (isMe) return Align(alignment: Alignment.centerLeft, child: bubble);
+    // رد جاسر: نجمة تميّزه بأنه من المساعد
     return Align(
-      alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(16),
-          border: isMe ? null : Border.all(color: cs.outline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (m.hasMedia) _mediaContent(m),
-            if (m.text.isNotEmpty)
-              Padding(
-                padding: EdgeInsets.only(top: m.hasMedia ? 8 : 0),
-                child: Text(
-                  m.text,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(color: fg, fontSize: 15),
-                ),
-              ),
-          ],
-        ),
+      alignment: Alignment.centerRight,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6, right: 4),
+            child: CircleAvatar(
+              radius: 13,
+              backgroundColor: cs.primary,
+              child: Icon(Icons.auto_awesome, size: 14, color: cs.onPrimary),
+            ),
+          ),
+          Flexible(child: bubble),
+        ],
       ),
     );
   }
