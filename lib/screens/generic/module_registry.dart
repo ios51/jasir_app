@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'field_def.dart';
+import '../../services/api_client.dart';
 import '../cars/car_service_log_screen.dart';
 import '../family/medical_files_screen.dart';
 
@@ -28,10 +30,42 @@ class ModuleRegistry {
       FieldDef('durationDays', 'عدد الأيام (0=مستمر)', type: FieldType.number),
       FieldDef('totalPills', 'عدد الحبات الكلي', type: FieldType.number),
       FieldDef('startDate', 'تاريخ البدء', type: FieldType.date),
-      FieldDef('caregiverName', 'اسم المتابِع (اختياري)'),
-      FieldDef('caregiverWa', 'جوال المتابِع للتنبيه', hint: '05xxxxxxxx'),
       FieldDef('confirmAfter', 'تنبيه المتابِع بعد (دقيقة)', type: FieldType.number, hint: '30'),
     ],
+    itemActionIcon: Icons.vpn_key_outlined,
+    itemActionTooltip: 'دعوة متابِع',
+    itemAction: (ctx, m) async {
+      try {
+        final res = await ApiClient.instance.dio.post('/api/v1/meds/${m['id']}/caregiver-invite');
+        final code = res.data['code']?.toString() ?? '';
+        if (!ctx.mounted) return;
+        showDialog(
+          context: ctx,
+          builder: (_) => AlertDialog(
+            title: const Text('دعوة متابِع للدواء'),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Text('أعطِ هذا الكود للمتابِع — يدخله في جاسر (المحادثة: "متابع [الكود]") ليتابع الدواء ويوصله تنبيه لو ما تأكّدت الجرعة:',
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              SelectableText(code, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 3)),
+            ]),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: code));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('نُسخ الكود: $code')));
+                },
+                child: const Text('نسخ'),
+              ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إغلاق')),
+            ],
+          ),
+        );
+      } catch (e) {
+        if (ctx.mounted) ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('تعذّرت الدعوة')));
+      }
+    },
   );
 
   static final ModuleDef measurements = ModuleDef(

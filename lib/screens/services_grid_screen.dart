@@ -8,6 +8,7 @@ import 'settings/morning_settings_screen.dart';
 import 'sizes/size_categories_screen.dart';
 import 'shopping/shopping_groups_screen.dart';
 import 'documents/documents_screen.dart';
+import 'links/links_grouped_screen.dart';
 
 /// شاشة "الخدمات" — شبكة بطاقات محايدة بأيقونات ملوّنة (وفق ملف الهوية):
 /// اللون للأيقونة فقط، البطاقة محايدة، عنوان + وصف مختصر.
@@ -41,8 +42,8 @@ class ServicesGridScreen extends StatelessWidget {
           Icons.engineering_outlined, const Color(0xFFD98E27), () => GenericListScreen(def: ModuleRegistry.workers)),
       _ServiceTile('مقاساتي', 'قياسات الأشخاص والأماكن',
           Icons.straighten_outlined, const Color(0xFF20B9C5), () => const SizeCategoriesScreen()),
-      _ServiceTile('روابطي', 'روابطك المحفوظة',
-          Icons.link_outlined, const Color(0xFF3C9BDF), () => GenericListScreen(def: ModuleRegistry.links)),
+      _ServiceTile('روابطي', 'مجلدات + تصنيف تلقائي',
+          Icons.link_outlined, const Color(0xFF3C9BDF), () => const LinksGroupedScreen()),
       _ServiceTile('رسالة الصباح', 'ملخص يومك وبداية ملهمة',
           Icons.wb_sunny_outlined, const Color(0xFFE7B84B), () => const MorningSettingsScreen()),
     ];

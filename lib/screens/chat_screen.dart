@@ -70,11 +70,22 @@ class _ChatScreenState extends State<ChatScreen> {
           ..clear()
           ..addAll(saved);
       });
-      _scrollToBottom();
     } else {
       _persist(); // احفظ رسالة الترحيب أول مرة
     }
-    _maybeShowMorning();
+    await _maybeShowMorning();
+    _jumpToEnd();
+  }
+
+  /// يقفز لآخر المحادثة بعد اكتمال البناء (عدّة محاولات لضمان النزول).
+  void _jumpToEnd() {
+    for (final ms in [80, 300, 650]) {
+      Future.delayed(Duration(milliseconds: ms), () {
+        if (mounted && _scrollController.hasClients) {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
+      });
+    }
   }
 
   /// يعرض رسالة الصباح داخل المحادثة (مرّة واحدة يومياً بعد وقتها) —
