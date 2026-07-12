@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'field_def.dart';
 import '../cars/car_service_log_screen.dart';
+import '../family/medical_files_screen.dart';
 
 /// سجل كل موديولات جاسر — كل تعريف يولّد شاشة قائمة + نموذج تلقائياً.
 class ModuleRegistry {
@@ -22,11 +23,14 @@ class ModuleRegistry {
     fields: const [
       FieldDef('name', 'اسم الدواء', required: true),
       FieldDef('dose', 'الجرعة', hint: 'حبة، 5مل...'),
-      FieldDef('personName', 'لمن؟ (اختياري)'),
+      FieldDef('personName', 'المريض / لمن؟'),
       FieldDef('timeSlots', 'أوقات اليوم', hint: '08:00,14:00,21:00'),
       FieldDef('durationDays', 'عدد الأيام (0=مستمر)', type: FieldType.number),
       FieldDef('totalPills', 'عدد الحبات الكلي', type: FieldType.number),
       FieldDef('startDate', 'تاريخ البدء', type: FieldType.date),
+      FieldDef('caregiverName', 'اسم المتابِع (اختياري)'),
+      FieldDef('caregiverWa', 'جوال المتابِع للتنبيه', hint: '05xxxxxxxx'),
+      FieldDef('confirmAfter', 'تنبيه المتابِع بعد (دقيقة)', type: FieldType.number, hint: '30'),
     ],
   );
 
@@ -95,6 +99,12 @@ class ModuleRegistry {
       FieldDef('dobHijri', 'تاريخ الميلاد (هجري)', hint: '1436-07-14'),
       FieldDef('passportNo', 'رقم الجواز'),
     ],
+    itemScreen: (ctx, m) => MedicalFilesScreen(
+      memberId: m['id'] as int,
+      memberName: (m['nickname'] ?? m['first_name'] ?? 'فرد').toString(),
+    ),
+    itemScreenIcon: Icons.folder_shared_outlined,
+    itemScreenTooltip: 'الملفات الطبية',
   );
 
   static final ModuleDef contacts = ModuleDef(
