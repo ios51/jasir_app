@@ -6,9 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_message.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/chat_service.dart';
 import '../services/chat_store.dart';
 import '../services/chat_prefs.dart';
+import '../services/settings_service.dart';
 
 /// شاشة محادثة مباشرة مع جاسر — نفس تجربة واتساب بالضبط، بس داخل التطبيق.
 /// تدعم: نص، تسجيل صوت (المايك)، ورفع صور/PDF ليقرأها جاسر ويحفظ بياناتها.
@@ -72,6 +74,31 @@ class _ChatScreenState extends State<ChatScreen> {
     } else {
       _persist(); // احفظ رسالة الترحيب أول مرة
     }
+    _maybeShowMorning();
+  }
+
+  /// يعرض رسالة الصباح داخل المحادثة (مرّة واحدة يومياً بعد وقتها) —
+  /// يحلّ مشكلة "الإشعار يجي والرسالة مو موجودة في التطبيق".
+  Future<void> _maybeShowMorning() async {
+    try {
+      const storage = FlutterSecureStorage();
+      final now = DateTime.now();
+      final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      if (await storage.read(key: 'jasir_morning_shown') == today) return;
+      final s = await SettingsService().getSettings();
+      final enabled = s['morning_enabled'] == 1 || s['morning_enabled'] == true;
+      if (!enabled) return;
+      final t = (s['morning_time'] as String?)?.isNotEmpty == true ? s['morning_time'] as String : '07:00';
+      final p = t.split(':');
+      final due = DateTime(now.year, now.month, now.day, int.tryParse(p[0]) ?? 7, int.tryParse(p.length > 1 ? p[1] : '0') ?? 0);
+      if (now.isBefore(due)) return; // لسّا ما حان وقتها اليوم
+      final txt = await SettingsService().previewMorning();
+      if (txt.trim().isEmpty || !mounted) return;
+      setState(() => _messages.add(ChatMessage(text: txt, isMe: false)));
+      _persist();
+      _scrollToBottom();
+      await storage.write(key: 'jasir_morning_shown', value: today);
+    } catch (_) {}
   }
 
   void _persist() => ChatStore.save(_messages);
