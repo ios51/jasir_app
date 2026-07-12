@@ -49,6 +49,8 @@ class ModuleDef {
   final IconData? itemActionIcon;
   final String? itemActionTooltip;
   final void Function(BuildContext context, Map<String, dynamic> item)? itemAction;
+  // شاشة نموذج مخصّصة بدل النموذج العام (للأدوية مثلاً بواجهة أذكى)
+  final Widget Function(BuildContext context, Map<String, dynamic>? existing)? formBuilder;
 
   const ModuleDef({
     required this.title,
@@ -67,6 +69,7 @@ class ModuleDef {
     this.itemActionIcon,
     this.itemActionTooltip,
     this.itemAction,
+    this.formBuilder,
   });
 }
 

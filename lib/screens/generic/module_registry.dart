@@ -5,6 +5,7 @@ import 'field_def.dart';
 import '../../services/api_client.dart';
 import '../cars/car_service_log_screen.dart';
 import '../family/medical_files_screen.dart';
+import '../meds/meds_form_screen.dart';
 
 /// سجل كل موديولات جاسر — كل تعريف يولّد شاشة قائمة + نموذج تلقائياً.
 class ModuleRegistry {
@@ -22,21 +23,10 @@ class ModuleRegistry {
       return parts.join('  •  ');
     },
     actions: const [ModuleAction('أخذت الجرعة', Icons.check_circle_outline, 'taken', 'تم تسجيل الجرعة ✅')],
+    // نموذج مخصّص للأدوية (قائمة ساعات/أيام بحقل متغيّر)
+    formBuilder: (ctx, existing) => MedsFormScreen(existing: existing),
     fields: const [
       FieldDef('name', 'اسم الدواء', required: true),
-      FieldDef('dose', 'الجرعة', hint: 'حبة، 5مل...'),
-      FieldDef('personName', 'المريض / لمن؟'),
-      FieldDef('timeMode', 'طريقة الجرعات', type: FieldType.dropdown, options: [
-        FieldOption('fixed', 'أوقات ثابتة (تكتبها بنفسك)'),
-        FieldOption('interval', 'كل عدد ساعات'),
-      ]),
-      FieldDef('timeSlots', 'أوقات اليوم (لو ثابتة)', hint: '08:00,14:00,21:00'),
-      FieldDef('intervalHours', 'كل كم ساعة؟ (لو بالساعات)', type: FieldType.number, hint: '8'),
-      FieldDef('firstDoseTime', 'وقت أول جرعة (لو بالساعات)', type: FieldType.time),
-      FieldDef('durationDays', 'عدد الأيام (0=مستمر)', type: FieldType.number),
-      FieldDef('totalPills', 'عدد الحبات الكلي', type: FieldType.number),
-      FieldDef('startDate', 'تاريخ البدء', type: FieldType.date),
-      FieldDef('confirmAfter', 'تنبيه المتابِع بعد (دقيقة)', type: FieldType.number, hint: '30'),
     ],
     itemActionIcon: Icons.vpn_key_outlined,
     itemActionTooltip: 'دعوة متابِع',

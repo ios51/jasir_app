@@ -36,10 +36,12 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
 
   Future<void> _pickDate(FieldDef f) async {
     final now = DateTime.now();
+    // نطاق واسع يسمح بتواريخ الميلاد القديمة (مثل 1981) وتواريخ البدء الحديثة
+    final current = DateTime.tryParse((_values[f.key] ?? '').toString());
     final picked = await showDatePicker(
       context: context,
-      initialDate: now,
-      firstDate: DateTime(now.year - 5),
+      initialDate: current ?? now,
+      firstDate: DateTime(1920),
       lastDate: DateTime(now.year + 10),
     );
     if (picked != null) {

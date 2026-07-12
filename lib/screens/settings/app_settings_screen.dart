@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import '../../theme/theme_controller.dart';
 import '../../services/settings_service.dart';
 import '../../services/api_client.dart';
-import '../generic/module_registry.dart';
-import '../generic/generic_form_screen.dart';
 import '../family/medical_files_screen.dart';
+import 'my_profile_screen.dart';
 
 /// إعدادات عامة: بياناتك (الكنية) + التنبيه الافتراضي، المظهر، وحجم الخط.
 class AppSettingsScreen extends StatefulWidget {
@@ -40,25 +39,22 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     try { await _svc.update({'default_reminder': v}); } catch (_) {}
   }
 
-  /// يفتح ملف بيانات المستخدم الكامل (نفس نموذج العائلة) أو ملفاته الطبية.
+  /// يفتح شاشة «بياناتي» المخصّصة، أو الملفات الطبية.
   Future<void> _openMyProfile({required bool medical}) async {
+    if (!medical) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const MyProfileScreen()));
+      return;
+    }
     try {
       final res = await ApiClient.instance.dio.get('/api/v1/family/me');
       final self = Map<String, dynamic>.from(res.data as Map);
       if (!mounted) return;
-      if (medical) {
-        Navigator.push(context, MaterialPageRoute(builder: (_) =>
-            MedicalFilesScreen(memberId: self['id'] as int, memberName: 'بياناتي')));
-      } else {
-        Navigator.push(context, MaterialPageRoute(builder: (_) =>
-            GenericFormScreen(def: ModuleRegistry.family, existing: self)));
-      }
+      Navigator.push(context, MaterialPageRoute(builder: (_) =>
+          MedicalFilesScreen(memberId: self['id'] as int, memberName: 'بياناتي')));
     } catch (_) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح بياناتي')));
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح ملفاتي الطبية')));
     }
   }
-
-  String _remLabel(int m) => m == 0 ? 'بدون' : m == 1440 ? 'قبل يوم' : m == 60 ? 'قبل ساعة' : 'قبل $m دقيقة';
 
   @override
   Widget build(BuildContext context) {

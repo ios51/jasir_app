@@ -33,7 +33,9 @@ class _GenericListScreenState extends State<GenericListScreen> {
 
   Future<void> _openForm({Map<String, dynamic>? existing}) async {
     final saved = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => GenericFormScreen(def: widget.def, existing: existing)),
+      MaterialPageRoute(builder: (ctx) => widget.def.formBuilder != null
+          ? widget.def.formBuilder!(ctx, existing)
+          : GenericFormScreen(def: widget.def, existing: existing)),
     );
     if (saved == true) _reload();
   }
