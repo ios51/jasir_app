@@ -103,19 +103,35 @@ class _StartupGate extends StatefulWidget {
   State<_StartupGate> createState() => _StartupGateState();
 }
 
-class _StartupGateState extends State<_StartupGate> {
+class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver {
   bool? _loggedIn;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     ApiClient.instance.isLoggedIn().then((v) {
       if (mounted) setState(() => _loggedIn = v);
-      // بعد التأكد من الدخول، اطلب إذن التنبيهات وجدولها من بيانات جاسر
+      // بعد التأكد من الدخول، اطلب إذن التنبيهات وजدولها من بيانات جاسر
       if (v == true) {
         NotificationSync.run();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // عند رجوع المستخدم للتطبيق، أعد جدولة التنبيهات لتشمل أي مواعيد/أدوية
+    // أُضيفت من الواتساب أو من التطبيق (تنبيهات على التطبيق بدل الواتساب).
+    if (state == AppLifecycleState.resumed && _loggedIn == true) {
+      NotificationSync.run();
+    }
   }
 
   @override

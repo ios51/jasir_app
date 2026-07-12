@@ -47,8 +47,14 @@ class _EventsListScreenState extends State<EventsListScreen> {
             children: [
               if (e.eventDate != null)
                 _line(Icons.calendar_today, '${e.eventDate}${e.eventTime != null ? ' - ${e.eventTime}' : ''}'),
-              if (e.location != null && e.location!.isNotEmpty) _line(Icons.place_outlined, e.location!),
-              if (e.doctorName != null && e.doctorName!.isNotEmpty) _line(Icons.medical_services_outlined, 'د. ${e.doctorName}'),
+              if (e.hospital != null && e.hospital!.isNotEmpty) _line(Icons.local_hospital_outlined, e.hospital!),
+              if (e.clinic != null && e.clinic!.isNotEmpty) _line(Icons.medical_services_outlined, e.clinic!),
+              if (e.apptNumber != null && e.apptNumber!.isNotEmpty) _line(Icons.confirmation_number_outlined, 'رقم الموعد: ${e.apptNumber}'),
+              if ((e.hospital == null || e.hospital!.isEmpty) && e.location != null && e.location!.isNotEmpty)
+                _line(Icons.place_outlined, e.location!),
+              if (e.doctorName != null && e.doctorName!.isNotEmpty) _line(Icons.person_outline, 'د. ${e.doctorName}'),
+              if (e.locationUrl != null && e.locationUrl!.isNotEmpty)
+                _line(Icons.map_outlined, 'الموقع على الخريطة'),
             ],
           ),
           onTap: () => _openForm(event: e),

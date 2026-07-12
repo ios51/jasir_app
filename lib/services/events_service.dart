@@ -24,4 +24,14 @@ class EventsService {
   Future<void> delete(int id) async {
     await _dio.delete('/api/v1/events/$id');
   }
+
+  /// قائمة أسماء المستشفيات/المجمعات (عامة + خاصة بالمستخدم) لقائمة الاختيار.
+  Future<List<String>> hospitals() async {
+    try {
+      final res = await _dio.get('/api/v1/hospitals');
+      return (res.data as List).map((e) => e.toString()).toList();
+    } catch (_) {
+      return [];
+    }
+  }
 }

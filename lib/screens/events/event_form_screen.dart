@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/event.dart';
 import '../../services/events_service.dart';
+import '../../services/notification_sync.dart';
 
 /// شاشة إضافة/تعديل موعد.
 class EventFormScreen extends StatefulWidget {
@@ -17,6 +18,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
 
   late TextEditingController _title;
   late TextEditingController _location;
+  late TextEditingController _hospital;
+  late TextEditingController _clinic;
+  late TextEditingController _apptNumber;
   late TextEditingController _doctor;
   late TextEditingController _building;
   late TextEditingController _room;
@@ -26,6 +30,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
   int _notifyBefore = 60;
   String _apptType = 'in_person';
   bool _saving = false;
+  List<String> _hospitalOptions = [];
 
   bool get _isEdit => widget.event != null;
 
@@ -35,6 +40,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
     final e = widget.event;
     _title = TextEditingController(text: e?.title ?? '');
     _location = TextEditingController(text: e?.location ?? '');
+    _hospital = TextEditingController(text: e?.hospital ?? '');
+    _clinic = TextEditingController(text: e?.clinic ?? '');
+    _apptNumber = TextEditingController(text: e?.apptNumber ?? '');
     _doctor = TextEditingController(text: e?.doctorName ?? '');
     _building = TextEditingController(text: e?.buildingNo ?? '');
     _room = TextEditingController(text: e?.roomNo ?? '');
@@ -50,6 +58,12 @@ class _EventFormScreenState extends State<EventFormScreen> {
         _time = TimeOfDay(hour: int.tryParse(parts[0]) ?? 0, minute: int.tryParse(parts[1]) ?? 0);
       }
     }
+    _loadHospitals();
+  }
+
+  Future<void> _loadHospitals() async {
+    final list = await _service.hospitals();
+    if (mounted) setState(() => _hospitalOptions = list);
   }
 
   Future<void> _pickDate() async {
@@ -74,6 +88,15 @@ class _EventFormScreenState extends State<EventFormScreen> {
   String? get _timeStr =>
       _time == null ? null : '${_time!.hour.toString().padLeft(2, '0')}:${_time!.minute.toString().padLeft(2, '0')}';
 
+  static String _reminderLabel(int m) {
+    if (m == 0) return 'بدون تذكير';
+    if (m == 1440) return 'قبل يوم';
+    if (m == 2880) return 'قبل يومين';
+    if (m == 4320) return 'قبل ٣ أيام';
+    if (m >= 60 && m % 60 == 0) return 'قبل ${m ~/ 60} ساعة';
+    return 'قبل $m دقيقة';
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
@@ -89,6 +112,9 @@ class _EventFormScreenState extends State<EventFormScreen> {
       roomNo: _room.text.trim(),
       notes: _notes.text.trim(),
       apptType: _apptType,
+      hospital: _hospital.text.trim(),
+      clinic: _clinic.text.trim(),
+      apptNumber: _apptNumber.text.trim(),
     );
     try {
       if (_isEdit) {
@@ -96,6 +122,7 @@ class _EventFormScreenState extends State<EventFormScreen> {
       } else {
         await _service.create(event);
       }
+      NotificationSync.run(); // أعد جدولة التنبيهات لتشمل هذا الموعد فوراً
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -151,9 +178,44 @@ class _EventFormScreenState extends State<EventFormScreen> {
               onChanged: (v) => setState(() => _apptType = v ?? 'in_person'),
             ),
             const SizedBox(height: 12),
+            // المستشفى/المجمع مع اقتراحات من قائمة جاهزة (وتُضاف تلقائياً لو جديد)
+            Autocomplete<String>(
+              initialValue: TextEditingValue(text: _hospital.text),
+              optionsBuilder: (v) {
+                final q = v.text.trim();
+                if (q.isEmpty) return _hospitalOptions;
+                return _hospitalOptions.where((h) => h.contains(q));
+              },
+              onSelected: (s) => _hospital.text = s,
+              fieldViewBuilder: (context, ctrl, focus, onSubmit) {
+                return TextFormField(
+                  controller: ctrl,
+                  focusNode: focus,
+                  onChanged: (t) => _hospital.text = t,
+                  decoration: const InputDecoration(
+                    labelText: 'المستشفى / المجمع',
+                    hintText: 'اكتب أو اختر من القائمة',
+                    prefixIcon: Icon(Icons.local_hospital_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _clinic,
+              decoration: const InputDecoration(labelText: 'العيادة / القسم', prefixIcon: Icon(Icons.medical_services_outlined), border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
+            TextFormField(
+              controller: _apptNumber,
+              keyboardType: TextInputType.text,
+              decoration: const InputDecoration(labelText: 'رقم الموعد', prefixIcon: Icon(Icons.confirmation_number_outlined), border: OutlineInputBorder()),
+            ),
+            const SizedBox(height: 12),
             TextFormField(
               controller: _location,
-              decoration: const InputDecoration(labelText: 'المكان', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'المكان / رابط الموقع', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 12),
             Row(
@@ -180,10 +242,10 @@ class _EventFormScreenState extends State<EventFormScreen> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
-              value: _notifyBefore,
+              value: const [0, 15, 30, 60, 120, 1440, 2880, 4320].contains(_notifyBefore) ? _notifyBefore : 60,
               decoration: const InputDecoration(labelText: 'التذكير قبل الموعد', border: OutlineInputBorder()),
-              items: const [0, 15, 30, 60, 120, 1440]
-                  .map((m) => DropdownMenuItem(value: m, child: Text(m == 0 ? 'بدون تذكير' : m == 1440 ? 'يوم كامل' : '$m دقيقة')))
+              items: const [0, 15, 30, 60, 120, 1440, 2880, 4320]
+                  .map((m) => DropdownMenuItem(value: m, child: Text(_reminderLabel(m))))
                   .toList(),
               onChanged: (v) => setState(() => _notifyBefore = v ?? 60),
             ),

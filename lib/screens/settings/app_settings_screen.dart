@@ -17,7 +17,6 @@ class AppSettingsScreen extends StatefulWidget {
 class _AppSettingsScreenState extends State<AppSettingsScreen> {
   final _tc = ThemeController.instance;
   final _svc = SettingsService();
-  final _kunya = TextEditingController();
   int _defaultReminder = 60;
   bool _loaded = false;
 
@@ -27,27 +26,13 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _kunya.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     try {
       final s = await _svc.getSettings();
-      _kunya.text = (s['nickname'] as String?) ?? '';
       final r = s['default_reminder'];
       if (r is int) _defaultReminder = r; else if (r != null) _defaultReminder = int.tryParse(r.toString()) ?? 60;
     } catch (_) {}
     if (mounted) setState(() => _loaded = true);
-  }
-
-  Future<void> _saveKunya() async {
-    try {
-      await _svc.update({'nickname': _kunya.text.trim()});
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم الحفظ')));
-    } catch (_) {}
   }
 
   Future<void> _saveReminder(int v) async {
@@ -87,36 +72,21 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               const Padding(
-                padding: EdgeInsets.fromLTRB(4, 4, 4, 8),
+                padding: EdgeInsets.fromLTRB(4, 4, 4, 4),
                 child: Text('بياناتي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
-              TextField(
-                controller: _kunya,
-                decoration: InputDecoration(
-                  labelText: 'كيف تحب أناديك؟',
-                  hintText: 'أبو جاسر',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(icon: const Icon(Icons.check), onPressed: _loaded ? _saveKunya : null),
-                ),
-                onSubmitted: (_) => _saveKunya(),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
+                child: Text('اسمك، لقبك (كيف تحب أناديك)، وبياناتك — كلها داخل ملفك.',
+                    style: TextStyle(fontSize: 12.5, color: Colors.grey)),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<int>(
-                value: _defaultReminder,
-                decoration: const InputDecoration(labelText: 'التنبيه الافتراضي للمواعيد', border: OutlineInputBorder()),
-                items: const [0, 15, 30, 60, 120, 1440]
-                    .map((m) => DropdownMenuItem(value: m, child: Text(_labelFor(m))))
-                    .toList(),
-                onChanged: (v) => _saveReminder(v ?? 60),
-              ),
-              const SizedBox(height: 8),
               Card(
                 margin: EdgeInsets.zero,
                 child: Column(children: [
                   ListTile(
                     leading: const Icon(Icons.badge_outlined),
                     title: const Text('ملف بياناتي الكامل'),
-                    subtitle: const Text('الاسم، الهوية، الميلاد، الجواز...'),
+                    subtitle: const Text('اللقب، الاسم، الهوية، الميلاد، الجواز...'),
                     trailing: const Icon(Icons.chevron_left),
                     onTap: () => _openMyProfile(medical: false),
                   ),
@@ -129,6 +99,15 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     onTap: () => _openMyProfile(medical: true),
                   ),
                 ]),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<int>(
+                value: const [0, 15, 30, 60, 120, 1440, 2880, 4320].contains(_defaultReminder) ? _defaultReminder : 60,
+                decoration: const InputDecoration(labelText: 'التنبيه الافتراضي للمواعيد', border: OutlineInputBorder()),
+                items: const [0, 15, 30, 60, 120, 1440, 2880, 4320]
+                    .map((m) => DropdownMenuItem(value: m, child: Text(_labelFor(m))))
+                    .toList(),
+                onChanged: (v) => _saveReminder(v ?? 60),
               ),
               const Divider(height: 32),
               const Padding(
@@ -185,6 +164,12 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
     );
   }
 
-  static String _labelFor(int m) =>
-      m == 0 ? 'بدون' : m == 1440 ? 'قبل يوم' : m == 60 ? 'قبل ساعة' : 'قبل $m دقيقة';
+  static String _labelFor(int m) {
+    if (m == 0) return 'بدون';
+    if (m == 1440) return 'قبل يوم';
+    if (m == 2880) return 'قبل يومين';
+    if (m == 4320) return 'قبل ٣ أيام';
+    if (m >= 60 && m % 60 == 0) return 'قبل ${m ~/ 60} ساعة';
+    return 'قبل $m دقيقة';
+  }
 }

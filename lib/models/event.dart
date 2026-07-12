@@ -12,6 +12,9 @@ class AppEvent {
   String? roomNo;
   String? notes;
   String apptType; // in_person | remote
+  String? hospital;
+  String? clinic;
+  String? apptNumber;
 
   AppEvent({
     this.id,
@@ -27,6 +30,9 @@ class AppEvent {
     this.roomNo,
     this.notes,
     this.apptType = 'in_person',
+    this.hospital,
+    this.clinic,
+    this.apptNumber,
   });
 
   static int? _int(dynamic v) =>
@@ -48,6 +54,9 @@ class AppEvent {
         roomNo: _str(j['room_no']),
         notes: _str(j['notes']),
         apptType: _str(j['appt_type']) ?? 'in_person',
+        hospital: _str(j['hospital']),
+        clinic: _str(j['clinic']),
+        apptNumber: _str(j['appt_number']),
       );
 
   Map<String, dynamic> toJson() => {
@@ -63,5 +72,8 @@ class AppEvent {
         'roomNo': roomNo,
         'notes': notes,
         'apptType': apptType,
+        'hospital': hospital,
+        'clinic': clinic,
+        'apptNumber': apptNumber,
       };
 }

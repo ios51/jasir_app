@@ -38,8 +38,11 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _sending = false;
   bool _recording = false;
 
-  static const String _welcomeText =
-      'يسعد أوقاتك أبو جاسر يالغالي 🌅\n'
+  String _nick = '';
+
+  // ترحيب يستخدم اللقب الذي اختاره المستخدم (بدل "أبو جاسر" الثابت)
+  String get _welcomeText =>
+      'يسعد أوقاتك${_nick.isNotEmpty ? ' يا $_nick' : ' يالغالي'} 🌅\n'
       'سكرتيرك جاسر في خدمتك.\n'
       'مواعيدك وأدويتك ومهامك محفوظة عندي، وأنبّهك بها في وقتها — وأنت عِش يومك وبالك مرتاح.\n'
       'أمرني إيش أخدمك فيه؟';
@@ -63,6 +66,11 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _loadHistory() async {
+    // اقرأ اللقب أولاً حتى يظهر الترحيب باسم المستخدم
+    try {
+      final s = await SettingsService().getSettings();
+      _nick = ((s['nickname'] as String?) ?? '').trim();
+    } catch (_) {}
     final saved = await ChatStore.load();
     if (saved.isNotEmpty && mounted) {
       setState(() {
@@ -71,6 +79,14 @@ class _ChatScreenState extends State<ChatScreen> {
           ..addAll(saved);
       });
     } else {
+      // أول مرة: اعرض ترحيباً باسم المستخدم (اللقب) بدل الرسالة العامة
+      if (mounted && _nick.isNotEmpty) {
+        setState(() {
+          _messages
+            ..clear()
+            ..add(ChatMessage(text: _welcomeText, isMe: false));
+        });
+      }
       _persist(); // احفظ رسالة الترحيب أول مرة
     }
     await _maybeShowMorning();

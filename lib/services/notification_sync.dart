@@ -2,6 +2,7 @@ import 'notification_service.dart';
 import 'events_service.dart';
 import 'tasks_service.dart';
 import 'settings_service.dart';
+import 'module_service.dart';
 
 /// يزامن التنبيهات المحلية مع بيانات جاسر: يجلب المواعيد والمهام
 /// ووقت رسالة الصباح، ويجدولها كتنبيهات على الجهاز.
@@ -59,6 +60,34 @@ class NotificationSync {
         }
       } catch (_) {}
 
+      // ── الأدوية: جرعات اليوم والغد (أوقات ثابتة أو كل N ساعة) ──
+      try {
+        final meds = await ModuleService('/api/v1/meds').list();
+        final now = DateTime.now();
+        for (final m in meds) {
+          final name = (m['name'] ?? 'دواء').toString();
+          final person = (m['person_name'] ?? '').toString();
+          final who = person.isNotEmpty ? ' لـ$person' : '';
+          final times = _doseTimes(m); // قائمة "HH:MM"
+          for (final hm in times) {
+            final p = hm.split(':');
+            final h = int.tryParse(p[0]) ?? 0;
+            final mi = int.tryParse(p.length > 1 ? p[1] : '0') ?? 0;
+            // جدول لليوم والغد لضمان تغطية الجرعات القادمة
+            for (final addDay in [0, 1]) {
+              var when = DateTime(now.year, now.month, now.day, h, mi).add(Duration(days: addDay));
+              if (when.isBefore(now)) continue;
+              await NotificationService.scheduleAt(
+                id++,
+                '💊 موعد دواء$who',
+                '$name — الساعة $hm',
+                when,
+              );
+            }
+          }
+        }
+      } catch (_) {}
+
       // ── رسالة الصباح اليومية ──
       try {
         final s = await SettingsService().getSettings();
@@ -81,6 +110,33 @@ class NotificationSync {
         }
       } catch (_) {}
     } catch (_) {}
+  }
+
+  /// أوقات جرعات اليوم من تعريف الدواء: أوقات ثابتة (time_slots) أو
+  /// كل عدد ساعات (interval_hours + first_dose_time). يُرجع قائمة "HH:MM".
+  static List<String> _doseTimes(Map<String, dynamic> m) {
+    final mode = (m['time_mode'] ?? 'fixed').toString();
+    final out = <String>[];
+    if (mode == 'interval') {
+      final ih = int.tryParse((m['interval_hours'] ?? '').toString()) ?? 0;
+      final first = (m['first_dose_time'] ?? '').toString();
+      if (ih > 0 && first.contains(':')) {
+        final p = first.split(':');
+        var h = int.tryParse(p[0]) ?? 8;
+        final mi = int.tryParse(p.length > 1 ? p[1] : '0') ?? 0;
+        // ولّد جرعات اليوم من أول جرعة حتى نهاية اليوم
+        for (int t = h; t < 24; t += ih) {
+          out.add('${t.toString().padLeft(2, '0')}:${mi.toString().padLeft(2, '0')}');
+        }
+      }
+    } else {
+      final slots = (m['time_slots'] ?? '').toString();
+      for (final s in slots.split(',')) {
+        final v = s.trim();
+        if (v.contains(':')) out.add(v);
+      }
+    }
+    return out;
   }
 
   static DateTime? _parse(String date, String time) {

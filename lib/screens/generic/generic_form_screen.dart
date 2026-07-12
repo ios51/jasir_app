@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/module_service.dart';
+import '../../services/notification_sync.dart';
 import 'field_def.dart';
 
 /// نموذج عام لإضافة/تعديل عنصر في أي موديول، مبني من قائمة FieldDef.
@@ -74,6 +75,8 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
       } else {
         await svc.create(body);
       }
+      // لو الموديول أدوية، أعد جدولة التنبيهات المحلية فوراً
+      if (widget.def.path.contains('/meds')) NotificationSync.run();
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
