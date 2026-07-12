@@ -452,6 +452,7 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 IconButton(
                   onPressed: _sending ? null : _pickFile,
@@ -462,8 +463,10 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: TextField(
                     controller: _controller,
                     textAlign: TextAlign.right,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _send(),
+                    minLines: 1,
+                    maxLines: 6,
+                    keyboardType: TextInputType.multiline,
+                    textInputAction: TextInputAction.newline,
                     // لون النص يتبع الثيم حتى يظهر في المود الداكن
                     style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
                     decoration: InputDecoration(
