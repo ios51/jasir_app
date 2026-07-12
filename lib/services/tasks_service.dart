@@ -60,4 +60,14 @@ class TasksService {
 
   Future<void> share(int taskId, String contactName) =>
       _dio.post('/api/v1/tasks/$taskId/share', data: {'name': contactName});
+
+  /// يطلّع كود دعوة للمهمة (لربط الفريق بدون اشتراط جهة اتصال مرتبطة).
+  Future<String> invite(int taskId) async {
+    final res = await _dio.post('/api/v1/tasks/$taskId/invite');
+    return res.data['code'] as String;
+  }
+
+  /// الانضمام لمهمة بكود.
+  Future<void> joinByCode(String code) =>
+      _dio.post('/api/v1/tasks/join', data: {'code': code});
 }

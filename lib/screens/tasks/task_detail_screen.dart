@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/task.dart';
 import '../../services/tasks_service.dart';
 
@@ -14,6 +15,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   final _service = TasksService();
   late Future<AppTask> _future;
   bool _changed = false;
+  double? _dragProgress; // قيمة السحّاب أثناء السحب
 
   @override
   void initState() {
@@ -64,30 +66,47 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _reload();
   }
 
+  Future<void> _setProgress(int pct) async {
+    try {
+      await _service.setProgress(widget.taskId, pct);
+      _changed = true;
+      _reload();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر تحديث النسبة')));
+    }
+  }
+
   Future<void> _share() async {
-    final controller = TextEditingController();
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('مشاركة المهمة'),
-        content: TextField(controller: controller, decoration: const InputDecoration(labelText: 'اسم جهة الاتصال')),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('مشاركة')),
-        ],
-      ),
-    );
-    if (result == true && controller.text.trim().isNotEmpty) {
-      try {
-        await _service.share(widget.taskId, controller.text.trim());
-        _changed = true;
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تمت المشاركة')));
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(const SnackBar(content: Text('تعذرت المشاركة — تأكد أن الشخص جهة اتصال مرتبطة بحسابه')));
-        }
-      }
+    try {
+      final code = await _service.invite(widget.taskId);
+      _changed = true;
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('مشاركة المهمة'),
+          content: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('أعطِ هذا الكود لأعضاء فريقك — يدخلونه من "الانضمام بكود" في المهام:',
+                textAlign: TextAlign.center),
+            const SizedBox(height: 14),
+            SelectableText(code,
+                style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, letterSpacing: 4)),
+          ]),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: code));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('نُسخ الكود: $code')));
+              },
+              child: const Text('نسخ'),
+            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('إغلاق')),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذرت المشاركة')));
     }
   }
 
@@ -147,7 +166,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                 const SizedBox(height: 12),
                 LinearProgressIndicator(value: t.progress / 100, minHeight: 8),
                 const SizedBox(height: 8),
-                Text('التقدم: ${t.progress}%'),
+                Text('التقدم: ${_dragProgress?.round() ?? t.progress}%',
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                if (t.subtasks.isEmpty) ...[
+                  Slider(
+                    value: (_dragProgress ?? t.progress.toDouble()).clamp(0, 100),
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    label: '${(_dragProgress ?? t.progress.toDouble()).round()}%',
+                    onChanged: (v) => setState(() => _dragProgress = v),
+                    onChangeEnd: (v) {
+                      _dragProgress = null;
+                      _setProgress(v.round());
+                    },
+                  ),
+                  Wrap(
+                    spacing: 6,
+                    children: [0, 25, 50, 75, 100]
+                        .map((p) => ActionChip(label: Text('$p%'), onPressed: () => _setProgress(p)))
+                        .toList(),
+                  ),
+                ] else
+                  Text('النسبة محسوبة تلقائياً من المهام الفرعية',
+                      style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant, fontSize: 12)),
                 const SizedBox(height: 4),
                 Text(t.startType == 'scheduled' && t.startDate != null ? 'يبدأ: ${t.startDate}' : 'يبدأ: فوري'),
                 Text(t.endType == 'deadline' && t.dueDate != null ? '⏳ الموعد النهائي: ${t.dueDate}' : '⏳ بدون موعد نهائي'),

@@ -43,6 +43,35 @@ class _TasksListScreenState extends State<TasksListScreen> with SingleTickerProv
     if (saved == true) _reload();
   }
 
+  Future<void> _joinByCode() async {
+    final ctrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('الانضمام بكود'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.characters,
+          decoration: const InputDecoration(labelText: 'كود المهمة', border: OutlineInputBorder()),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('انضمام')),
+        ],
+      ),
+    );
+    if (ok == true && ctrl.text.trim().isNotEmpty) {
+      try {
+        await _service.joinByCode(ctrl.text.trim());
+        _reload();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('انضممت للمهمة ✅ — شوف "مشتركة معي"')));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('كود غير صحيح')));
+      }
+    }
+  }
+
   Widget _buildList(List<AppTask> items) {
     if (items.isEmpty) {
       return ListView(
@@ -110,9 +139,22 @@ class _TasksListScreenState extends State<TasksListScreen> with SingleTickerProv
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openCreate,
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'joinTask',
+            onPressed: _joinByCode,
+            tooltip: 'الانضمام بكود',
+            child: const Icon(Icons.vpn_key_outlined),
+          ),
+          const SizedBox(height: 10),
+          FloatingActionButton(
+            heroTag: 'addTask',
+            onPressed: _openCreate,
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }
