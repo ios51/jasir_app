@@ -73,9 +73,7 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _saving = true);
     try {
-      // 1) اللقب المفضّل → إعدادات المستخدم (يظهر في الترحيب ورسالة الصباح)
-      await _settings.update({'nickname': _preferredNick.text.trim()});
-      // 2) بيانات الهوية → family_members (سجل «أنا»)
+      // 1) بيانات الهوية → family_members (سجل «أنا») — أولاً
       if (_memberId != null) {
         await _dio.put('/api/v1/family/$_memberId', data: {
           'firstName': _first.text.trim(),
@@ -89,6 +87,8 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
           'passportNo': _passport.text.trim(),
         });
       }
+      // 2) اللقب المفضّل → إعدادات المستخدم — آخر خطوة حتى لا يدهسه أي شي
+      await _settings.update({'nickname': _preferredNick.text.trim()});
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تم حفظ بياناتك ✅')));
         Navigator.pop(context, true);

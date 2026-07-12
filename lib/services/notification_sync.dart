@@ -60,30 +60,23 @@ class NotificationSync {
         }
       } catch (_) {}
 
-      // ── الأدوية: جرعات اليوم والغد (أوقات ثابتة أو كل N ساعة) ──
+      // ── الأدوية: جرعات الـ48 ساعة القادمة (أوقات ثابتة أو كل N ساعة/يوم) ──
       try {
         final meds = await ModuleService('/api/v1/meds').list();
         final now = DateTime.now();
+        final horizon = now.add(const Duration(hours: 48));
         for (final m in meds) {
           final name = (m['name'] ?? 'دواء').toString();
           final person = (m['person_name'] ?? '').toString();
           final who = person.isNotEmpty ? ' لـ$person' : '';
-          final times = _doseTimes(m); // قائمة "HH:MM"
-          for (final hm in times) {
-            final p = hm.split(':');
-            final h = int.tryParse(p[0]) ?? 0;
-            final mi = int.tryParse(p.length > 1 ? p[1] : '0') ?? 0;
-            // جدول لليوم والغد لضمان تغطية الجرعات القادمة
-            for (final addDay in [0, 1]) {
-              var when = DateTime(now.year, now.month, now.day, h, mi).add(Duration(days: addDay));
-              if (when.isBefore(now)) continue;
-              await NotificationService.scheduleAt(
-                id++,
-                '💊 موعد دواء$who',
-                '$name — الساعة $hm',
-                when,
-              );
-            }
+          for (final when in _doseDateTimes(m, now, horizon)) {
+            final hm = '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
+            await NotificationService.scheduleAt(
+              id++,
+              '💊 موعد دواء$who',
+              '$name — الساعة $hm',
+              when,
+            );
           }
         }
       } catch (_) {}
@@ -112,28 +105,43 @@ class NotificationSync {
     } catch (_) {}
   }
 
-  /// أوقات جرعات اليوم من تعريف الدواء: أوقات ثابتة (time_slots) أو
-  /// كل عدد ساعات (interval_hours + first_dose_time). يُرجع قائمة "HH:MM".
-  static List<String> _doseTimes(Map<String, dynamic> m) {
+  /// أوقات الجرعات الفعلية بين [now] و[horizon]:
+  /// - interval: يبدأ من first_dose_time ويخطو كل interval_hours (يدعم أي فترة،
+  ///   بالساعات أو أيام×24)، ويلتقط كل الجرعات المستقبلية ضمن النافذة بدقّة.
+  /// - fixed: كل وقت في time_slots لليوم والغد وبعده.
+  static List<DateTime> _doseDateTimes(Map<String, dynamic> m, DateTime now, DateTime horizon) {
     final mode = (m['time_mode'] ?? 'fixed').toString();
-    final out = <String>[];
+    final out = <DateTime>[];
     if (mode == 'interval') {
       final ih = int.tryParse((m['interval_hours'] ?? '').toString()) ?? 0;
       final first = (m['first_dose_time'] ?? '').toString();
       if (ih > 0 && first.contains(':')) {
         final p = first.split(':');
-        var h = int.tryParse(p[0]) ?? 8;
-        final mi = int.tryParse(p.length > 1 ? p[1] : '0') ?? 0;
-        // ولّد جرعات اليوم من أول جرعة حتى نهاية اليوم
-        for (int t = h; t < 24; t += ih) {
-          out.add('${t.toString().padLeft(2, '0')}:${mi.toString().padLeft(2, '0')}');
+        final fh = int.tryParse(p[0]) ?? 8;
+        final fm = int.tryParse(p.length > 1 ? p[1] : '0') ?? 0;
+        // ابدأ من جرعة اليوم الأولى، ثم ارجع للخلف حتى ما قبل الآن، ثم اخطُ للأمام
+        var t = DateTime(now.year, now.month, now.day, fh, fm);
+        final step = Duration(hours: ih);
+        while (t.isAfter(now)) {
+          t = t.subtract(step);
+        }
+        while (t.isBefore(horizon)) {
+          if (t.isAfter(now)) out.add(t);
+          t = t.add(step);
         }
       }
     } else {
       final slots = (m['time_slots'] ?? '').toString();
       for (final s in slots.split(',')) {
         final v = s.trim();
-        if (v.contains(':')) out.add(v);
+        if (!v.contains(':')) continue;
+        final p = v.split(':');
+        final h = int.tryParse(p[0]) ?? 0;
+        final mi = int.tryParse(p.length > 1 ? p[1] : '0') ?? 0;
+        for (final addDay in [0, 1, 2]) {
+          final when = DateTime(now.year, now.month, now.day, h, mi).add(Duration(days: addDay));
+          if (when.isAfter(now) && when.isBefore(horizon)) out.add(when);
+        }
       }
     }
     return out;
