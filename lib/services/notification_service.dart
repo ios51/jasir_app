@@ -10,6 +10,14 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static bool _inited = false;
 
+  /// يُستدعى عند الضغط على إشعار — يمرّر الـpayload (main.dart يوجّه الشاشة).
+  static void Function(String payload)? onSelectPayload;
+
+  static void _handleResponse(NotificationResponse r) {
+    final p = r.payload;
+    if (p != null && p.isNotEmpty) onSelectPayload?.call(p);
+  }
+
   static Future<void> init() async {
     if (_inited) return;
     tzdata.initializeTimeZones();
@@ -24,8 +32,22 @@ class NotificationService {
     );
     await _plugin.initialize(
       const InitializationSettings(android: androidInit, iOS: darwinInit),
+      onDidReceiveNotificationResponse: _handleResponse,
     );
     _inited = true;
+  }
+
+  /// لو فُتح التطبيق من إشعار (كان مغلقاً تماماً) — وجّه بعد الإقلاع.
+  static Future<void> handleAppLaunch() async {
+    await init();
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp == true) {
+      final p = details?.notificationResponse?.payload;
+      if (p != null && p.isNotEmpty) {
+        // تأخير بسيط حتى يجهز المُنقّل (Navigator)
+        Future.delayed(const Duration(milliseconds: 600), () => onSelectPayload?.call(p));
+      }
+    }
   }
 
   /// يطلب إذن التنبيهات صراحةً (يظهر مربّع السماح على iOS/Android).
@@ -55,15 +77,16 @@ class NotificationService {
     await _plugin.cancelAll();
   }
 
-  static Future<void> showNow(int id, String title, String body) async {
+  static Future<void> showNow(int id, String title, String body, {String? payload}) async {
     await init();
-    await _plugin.show(id, title, body, _details);
+    await _plugin.show(id, title, body, _details, payload: payload);
   }
 
   /// يجدول تنبيهاً في وقت محدد. daily=true يكرّره يومياً في نفس الساعة.
+  /// payload يُمرَّر عند الضغط (مثل "med|3|فلازول" أو "morning").
   static Future<void> scheduleAt(
       int id, String title, String body, DateTime when,
-      {bool daily = false}) async {
+      {bool daily = false, String? payload}) async {
     await init();
     if (!daily && when.isBefore(DateTime.now())) return;
     final tzTime = tz.TZDateTime.from(when, tz.local);
@@ -77,6 +100,7 @@ class NotificationService {
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: daily ? DateTimeComponents.time : null,
+      payload: payload,
     );
   }
 }

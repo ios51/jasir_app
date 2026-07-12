@@ -14,6 +14,25 @@ class HomeDashboard extends StatelessWidget {
   const HomeDashboard({super.key});
 
   Future<void> _logout(BuildContext context) async {
+    // تأكيد قبل الخروج (يمنع الخروج بالغلط)
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => Directionality(
+        textDirection: TextDirection.rtl,
+        child: AlertDialog(
+          title: const Text('تسجيل الخروج'),
+          content: const Text('متأكد أنك تبي تسجّل خروج؟ بتحتاج ترسل رمز تحقق جديد للدخول مرة ثانية.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('خروج', style: TextStyle(color: Colors.redAccent)),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true) return;
     await AuthService().logout();
     if (!context.mounted) return;
     Navigator.of(context).pushAndRemoveUntil(

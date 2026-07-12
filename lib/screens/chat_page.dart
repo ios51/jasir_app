@@ -4,7 +4,9 @@ import '../services/chat_prefs.dart';
 
 /// صفحة المحادثة الكاملة (تُفتح من الرئيسية) — شريط علوي فيه مسح المحادثة وتغيير الخلفية.
 class ChatPage extends StatelessWidget {
-  const ChatPage({super.key});
+  /// عند فتحها من إشعار الصباح: تعرض رسالة الصباح فوراً.
+  final bool forceMorning;
+  const ChatPage({super.key, this.forceMorning = false});
 
   Future<void> _menu(BuildContext context, String v) async {
     if (v == 'clear') {
@@ -79,7 +81,7 @@ class ChatPage extends StatelessWidget {
           ),
         ],
       ),
-      body: const ChatScreen(),
+      body: ChatScreen(forceMorning: forceMorning),
     );
   }
 }

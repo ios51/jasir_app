@@ -9,12 +9,31 @@ import 'theme/theme_controller.dart';
 import 'widgets/jasir_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/chat_page.dart';
+import 'screens/meds/dose_confirm_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
+/// يوجّه الضغط على الإشعار للشاشة المناسبة (دواء → تأكيد، صباح → المحادثة).
+void handleNotificationPayload(String payload) {
+  final nav = rootNavigatorKey.currentState;
+  if (nav == null) return;
+  if (payload.startsWith('med|')) {
+    final parts = payload.split('|');
+    final id = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
+    final name = parts.length > 2 ? parts[2] : 'دوائك';
+    if (id > 0) {
+      nav.push(MaterialPageRoute(builder: (_) => DoseConfirmScreen(medId: id, medName: name)));
+    }
+  } else if (payload == 'morning') {
+    nav.push(MaterialPageRoute(builder: (_) => const ChatPage(forceMorning: true)));
+  }
+}
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   NotificationService.init();
+  NotificationService.onSelectPayload = handleNotificationPayload;
   ThemeController.instance.load();
   ChatPrefs.load();
   runApp(const JasirApp());
@@ -115,6 +134,8 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
       // بعد التأكد من الدخول، اطلب إذن التنبيهات وजدولها من بيانات جاسر
       if (v == true) {
         NotificationSync.run();
+        // لو فُتح التطبيق بالضغط على إشعار (كان مغلقاً) — وجّه للشاشة المناسبة
+        NotificationService.handleAppLaunch();
       }
     });
   }

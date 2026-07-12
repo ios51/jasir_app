@@ -15,7 +15,9 @@ import '../services/settings_service.dart';
 /// شاشة محادثة مباشرة مع جاسر — نفس تجربة واتساب بالضبط، بس داخل التطبيق.
 /// تدعم: نص، تسجيل صوت (المايك)، ورفع صور/PDF ليقرأها جاسر ويحفظ بياناتها.
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  /// عند فتحها من إشعار الصباح: اعرض رسالة الصباح فوراً (تجاوز حارس مرة/يوم).
+  final bool forceMorning;
+  const ChatScreen({super.key, this.forceMorning = false});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -108,17 +110,18 @@ class _ChatScreenState extends State<ChatScreen> {
   /// يحلّ مشكلة "الإشعار يجي والرسالة مو موجودة في التطبيق".
   Future<void> _maybeShowMorning() async {
     try {
+      final force = widget.forceMorning; // فُتحت من إشعار الصباح → اعرض فوراً
       const storage = FlutterSecureStorage();
       final now = DateTime.now();
       final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      if (await storage.read(key: 'jasir_morning_shown') == today) return;
+      if (!force && await storage.read(key: 'jasir_morning_shown') == today) return;
       final s = await SettingsService().getSettings();
       final enabled = s['morning_enabled'] == 1 || s['morning_enabled'] == true;
-      if (!enabled) return;
+      if (!force && !enabled) return;
       final t = (s['morning_time'] as String?)?.isNotEmpty == true ? s['morning_time'] as String : '07:00';
       final p = t.split(':');
       final due = DateTime(now.year, now.month, now.day, int.tryParse(p[0]) ?? 7, int.tryParse(p.length > 1 ? p[1] : '0') ?? 0);
-      if (now.isBefore(due)) return; // لسّا ما حان وقتها اليوم
+      if (!force && now.isBefore(due)) return; // لسّا ما حان وقتها اليوم
       final txt = await SettingsService().previewMorning();
       if (txt.trim().isEmpty || !mounted) return;
       setState(() => _messages.add(ChatMessage(text: txt, isMe: false)));

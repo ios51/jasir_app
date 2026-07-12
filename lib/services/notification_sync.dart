@@ -69,6 +69,7 @@ class NotificationSync {
           final name = (m['name'] ?? 'دواء').toString();
           final person = (m['person_name'] ?? '').toString();
           final who = person.isNotEmpty ? ' لـ$person' : '';
+          final medId = int.tryParse((m['id'] ?? '').toString()) ?? 0;
           for (final when in _doseDateTimes(m, now, horizon)) {
             final hm = '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
             await NotificationService.scheduleAt(
@@ -76,6 +77,7 @@ class NotificationSync {
               '💊 موعد دواء$who',
               '$name — الساعة $hm',
               when,
+              payload: 'med|$medId|$name',
             );
           }
         }
@@ -99,6 +101,7 @@ class NotificationSync {
             'رسالتك الصباحية جاهزة — افتح جاسر',
             when,
             daily: true,
+            payload: 'morning',
           );
         }
       } catch (_) {}
