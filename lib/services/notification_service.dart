@@ -37,14 +37,20 @@ class NotificationService {
     _inited = true;
   }
 
+  static bool _launchHandled = false;
+
   /// لو فُتح التطبيق من إشعار (كان مغلقاً تماماً) — وجّه بعد الإقلاع.
+  /// _launchHandled: على أندرويد قد تبقى نية الإقلاع محفوظة، فإعادة إنشاء
+  /// النشاط (من قائمة «الأخيرة») كانت تعيد فتح نفس الشاشة مرة ثانية.
   static Future<void> handleAppLaunch() async {
+    if (_launchHandled) return;
+    _launchHandled = true;
     await init();
     final details = await _plugin.getNotificationAppLaunchDetails();
     if (details?.didNotificationLaunchApp == true) {
       final p = details?.notificationResponse?.payload;
       if (p != null && p.isNotEmpty) {
-        // تأخير بسيط حتى يجهز المُنقّل (Navigator)
+        // تأخير بسيط حتى يجهز المُنقّل (main.dart يعيد المحاولة لو ما جهز)
         Future.delayed(const Duration(milliseconds: 600), () => onSelectPayload?.call(p));
       }
     }
@@ -75,6 +81,18 @@ class NotificationService {
   static Future<void> cancelAll() async {
     await init();
     await _plugin.cancelAll();
+  }
+
+  /// يلغي فقط التنبيهات التي تملكها المزامنة (id أقل من 50000).
+  /// إصلاح: cancelAll كانت تمسح أيضاً تنبيه «أعطني ١٠ دقائق»
+  /// (id = 50000+medId) لو فتح المستخدم التطبيق خلال العشر دقائق —
+  /// فيضيع التذكير الموعود بصمت.
+  static Future<void> cancelSyncOwned() async {
+    await init();
+    final pending = await _plugin.pendingNotificationRequests();
+    for (final p in pending) {
+      if (p.id < 50000) await _plugin.cancel(p.id);
+    }
   }
 
   static Future<void> showNow(int id, String title, String body, {String? payload}) async {

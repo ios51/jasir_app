@@ -10,8 +10,15 @@ class NotificationSync {
   static Future<void> run() async {
     try {
       await NotificationService.requestPermission();
-      await NotificationService.cancelAll();
-      int id = 1;
+      // إصلاح: كانت cancelAll تمسح أيضاً تنبيه «أعطني ١٠ دقائق» (الغفوة)
+      // لو رجع المستخدم للتطبيق خلال العشر دقائق — الآن نلغي فقط ما تملكه
+      // المزامنة (id < 50000) ونُبقي الغفوات.
+      await NotificationService.cancelSyncOwned();
+
+      // نجمع كل المرشّحين أولاً ثم نجدول الأقرب زمنياً — iOS يسمح بـ64
+      // تنبيهاً معلّقاً فقط ويُسقط الزائد بصمت، فالترتيب يضمن ألا تضيع
+      // الجرعات القريبة لصالح مواعيد بعيدة.
+      final items = <_Sched>[];
 
       // ── المواعيد: تذكير مبكّر + تنبيه قريب قبل ٣٠ دقيقة ──
       try {
@@ -26,21 +33,19 @@ class NotificationSync {
           final who = (e.personName != null && e.personName!.isNotEmpty)
               ? e.personName
               : 'موعدك';
-          await NotificationService.scheduleAt(
-            id++,
+          items.add(_Sched(
             '🔔 تذكير موعد',
             '$who — ${e.title} الساعة ${e.eventTime}',
             dt.subtract(Duration(minutes: lead)),
-          );
+          ));
           final near = e.apptType == 'remote'
               ? 'فعّل جوالك — بيتصلون على ${e.personName ?? "المريض"}'
               : 'جهّز الهوية ورقم الملف الطبي للاستقبال';
-          await NotificationService.scheduleAt(
-            id++,
+          items.add(_Sched(
             '📍 ${e.title} بعد ٣٠ دقيقة',
             near,
             dt.subtract(const Duration(minutes: 30)),
-          );
+          ));
         }
       } catch (_) {}
 
@@ -51,12 +56,11 @@ class NotificationSync {
           if (t.completed || t.dueDate == null) continue;
           final dt = _parse(t.dueDate!, '09:00');
           if (dt == null) continue;
-          await NotificationService.scheduleAt(
-            id++,
+          items.add(_Sched(
             '📋 مهمة اليوم',
             '${t.title} — موعد التسليم اليوم',
             dt,
-          );
+          ));
         }
       } catch (_) {}
 
@@ -72,16 +76,24 @@ class NotificationSync {
           final medId = int.tryParse((m['id'] ?? '').toString()) ?? 0;
           for (final when in _doseDateTimes(m, now, horizon)) {
             final hm = '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
-            await NotificationService.scheduleAt(
-              id++,
+            items.add(_Sched(
               '💊 موعد دواء$who',
               '$name — الساعة $hm',
               when,
               payload: 'med|$medId|$name',
-            );
+            ));
           }
         }
       } catch (_) {}
+
+      // الأقرب أولاً، وبحد أقصى 59 (+ رسالة الصباح 9000 = 60 ضمن حد iOS)
+      items.sort((a, b) => a.when.compareTo(b.when));
+      int id = 1;
+      for (final it in items.take(59)) {
+        await NotificationService.scheduleAt(
+          id++, it.title, it.body, it.when, payload: it.payload,
+        );
+      }
 
       // ── رسالة الصباح اليومية ──
       try {
@@ -165,4 +177,13 @@ class NotificationSync {
       return null;
     }
   }
+}
+
+/// تنبيه مرشّح للجدولة (يُرتَّب زمنياً قبل الجدولة الفعلية).
+class _Sched {
+  final String title;
+  final String body;
+  final DateTime when;
+  final String? payload;
+  _Sched(this.title, this.body, this.when, {this.payload});
 }

@@ -23,7 +23,7 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final _service = ChatService();
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
@@ -52,8 +52,21 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadHistory();
     ChatPrefs.clearSignal.addListener(_onClearRequested);
+  }
+
+  /// إصلاح: رسالة الصباح كانت تنضاف فقط عند إنشاء الشاشة من جديد —
+  /// فلو بقي التطبيق فاتحاً بالخلفية من أمس ورجع له المستخدم بعد الساعة
+  /// المحددة (أو كان الجوال طافياً وقتها وضاع الإشعار)، ما كانت تظهر.
+  /// الآن: كل ما رجع التطبيق للواجهة نعيد الفحص — الحارس اليومي
+  /// (jasir_morning_shown) يمنع التكرار.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _maybeShowMorning();
+    }
   }
 
   void _onClearRequested() {
@@ -114,7 +127,15 @@ class _ChatScreenState extends State<ChatScreen> {
       const storage = FlutterSecureStorage();
       final now = DateTime.now();
       final today = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-      if (!force && await storage.read(key: 'jasir_morning_shown') == today) return;
+      final alreadyShown = await storage.read(key: 'jasir_morning_shown') == today;
+      if (!force && alreadyShown) return;
+      // فُتحت من الإشعار لكن الرسالة معروضة اليوم فعلاً → لا نكرّرها
+      // (كان الضغط الثاني على الإشعار يضيف نسخة ثانية ويحفظها)، نكتفي
+      // بالنزول لآخر المحادثة حيث الرسالة.
+      if (force && alreadyShown) {
+        _scrollToBottom();
+        return;
+      }
       final s = await SettingsService().getSettings();
       final enabled = s['morning_enabled'] == 1 || s['morning_enabled'] == true;
       if (!force && !enabled) return;
@@ -340,6 +361,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     ChatPrefs.clearSignal.removeListener(_onClearRequested);
     _controller.dispose();
     _scrollController.dispose();

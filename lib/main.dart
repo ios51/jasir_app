@@ -15,13 +15,22 @@ import 'screens/meds/dose_confirm_screen.dart';
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 /// يوجّه الضغط على الإشعار للشاشة المناسبة (دواء → تأكيد، صباح → المحادثة).
-void handleNotificationPayload(String payload) {
+/// [attempt]: لو المُنقّل ما جهز بعد (إقلاع بارد بطيء) نعيد المحاولة بدل
+/// ما نُسقط الضغطة بصمت — كانت تضيع لو 600ms ما كفت.
+void handleNotificationPayload(String payload, [int attempt = 0]) {
   final nav = rootNavigatorKey.currentState;
-  if (nav == null) return;
+  if (nav == null) {
+    if (attempt < 12) {
+      Future.delayed(const Duration(milliseconds: 500),
+          () => handleNotificationPayload(payload, attempt + 1));
+    }
+    return;
+  }
   if (payload.startsWith('med|')) {
     final parts = payload.split('|');
     final id = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
-    final name = parts.length > 2 ? parts[2] : 'دوائك';
+    // اسم الدواء قد يحتوي «|» — نضم الباقي بدل أخذ الجزء الثالث فقط
+    final name = parts.length > 2 ? parts.sublist(2).join('|') : 'دوائك';
     if (id > 0) {
       nav.push(MaterialPageRoute(builder: (_) => DoseConfirmScreen(medId: id, medName: name)));
     }
