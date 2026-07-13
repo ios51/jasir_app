@@ -50,21 +50,20 @@ import UIKit
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
-  // عرض إشعارات جاسر حتى والتطبيق مفتوح في المقدمة
+  // عرض كل إشعارات جاسر حتى والتطبيق مفتوح في المقدمة.
+  // إصلاح: كان يعرض فقط إشعارات Push (التي تحمل مفتاح "jasir")، فكانت
+  // الإشعارات المحلية — ومنها زر «جرّب تنبيهاً الآن» — تُكتم على iOS وهو
+  // بالمقدمة فيبدو أن الزر «ما يسوي شي». الآن نعرضها كلها.
   override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification,
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
-    if notification.request.content.userInfo["jasir"] != nil {
-      if #available(iOS 14.0, *) {
-        completionHandler([.banner, .sound])
-      } else {
-        completionHandler([.alert, .sound])
-      }
-      return
+    if #available(iOS 14.0, *) {
+      completionHandler([.banner, .sound, .badge])
+    } else {
+      completionHandler([.alert, .sound, .badge])
     }
-    super.userNotificationCenter(center, willPresent: notification, withCompletionHandler: completionHandler)
   }
 
   // ضغط المستخدم على إشعار Push → نمرر الوجهة لفلاتر (محادثة/صباح...)

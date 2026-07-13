@@ -113,10 +113,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       }
       _persist(); // احفظ رسالة الترحيب أول مرة
     }
-    await _maybeShowMorning();
-    await _pullInbox();
+    // مهم: نعرض سؤال الدواء فوراً قبل نداءات الشبكة — كان مؤجّلاً خلف
+    // await _pullInbox() فيدخل المستخدم ويلقى المحادثة «بدون رسالة» حتى
+    // ينتهي طلب الوارد (أو يفشل بعد مهلة). الآن يظهر السؤال حالاً.
     _maybeAskMedConfirm();
     _jumpToEnd();
+    await _maybeShowMorning();
+    await _pullInbox();
   }
 
   /// يسحب وارد السيرفر (تقرير الأمن، التحليلات...) ويعرضه كرسائل جاسر
@@ -154,9 +157,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   String _medPromptName = '';
   bool _medBusy = false;
 
+  bool _medAsked = false;
   void _maybeAskMedConfirm() {
     final id = widget.pendingMedId;
-    if (id == null || id <= 0 || !mounted) return;
+    if (id == null || id <= 0 || !mounted || _medAsked) return;
+    _medAsked = true; // حارس: لا يتكرر السؤال لو استُدعي مرتين (تحميل + استئناف)
     final name = (widget.pendingMedName ?? '').isNotEmpty ? widget.pendingMedName! : 'دوائك';
     setState(() {
       _medPromptId = id;

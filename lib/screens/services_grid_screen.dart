@@ -26,8 +26,8 @@ class ServicesGridScreen extends StatelessWidget {
           Icons.family_restroom_outlined, const Color(0xFF0F9DB0), () => GenericListScreen(def: ModuleRegistry.family)),
       _ServiceTile('سياراتي', 'خدمات ومعلومات سيارتك',
           Icons.directions_car_outlined, const Color(0xFF2D9CDB), () => GenericListScreen(def: ModuleRegistry.cars)),
-      _ServiceTile('أطباء ومستشفيات', 'جهات الرعاية الصحية',
-          Icons.local_hospital_outlined, const Color(0xFF5F89A8), () => GenericListScreen(def: ModuleRegistry.contacts)),
+      // «أطباء ومستشفيات» أُخفي بطلب المستخدم — رقم الملف الطبي يغطي الحاجة
+      // (البيانات محفوظة ولم تُحذف؛ يكفي إرجاع هذا السطر لإظهاره من جديد).
       _ServiceTile('القياسات الصحية', 'متابعة قياساتك الصحية',
           Icons.monitor_heart_outlined, const Color(0xFFC05B91), () => GenericListScreen(def: ModuleRegistry.measurements)),
       _ServiceTile('جدولي والمحاضرات', 'جدولك الأسبوعي والمحاضرات',

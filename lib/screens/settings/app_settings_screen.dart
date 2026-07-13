@@ -50,7 +50,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
       final self = Map<String, dynamic>.from(res.data as Map);
       if (!mounted) return;
       Navigator.push(context, MaterialPageRoute(builder: (_) =>
-          MedicalFilesScreen(memberId: self['id'] as int, memberName: 'بياناتي')));
+          MedicalFilesScreen(memberId: self['id'] as int, memberName: 'ملفاتي')));
     } catch (_) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر فتح ملفاتي الطبية')));
     }
@@ -68,35 +68,34 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               const Padding(
-                padding: EdgeInsets.fromLTRB(4, 4, 4, 4),
-                child: Text('بياناتي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ),
-              const Padding(
-                padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
-                child: Text('اسمك، لقبك (كيف تحب أناديك)، وبياناتك — كلها داخل ملفك.',
-                    style: TextStyle(fontSize: 12.5, color: Colors.grey)),
+                padding: EdgeInsets.fromLTRB(4, 4, 4, 10),
+                child: Text('حسابي', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ),
               Card(
                 margin: EdgeInsets.zero,
                 child: Column(children: [
                   ListTile(
                     leading: const Icon(Icons.badge_outlined),
-                    title: const Text('ملف بياناتي الكامل'),
-                    subtitle: const Text('اللقب، الاسم، الهوية، الميلاد، الجواز...'),
+                    title: const Text('بياناتي'),
+                    subtitle: const Text('الاسم، الهوية، الميلاد، الجواز'),
                     trailing: const Icon(Icons.chevron_left),
                     onTap: () => _openMyProfile(medical: false),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     leading: const Icon(Icons.folder_shared_outlined),
-                    title: const Text('ملفاتي الطبية'),
-                    subtitle: const Text('رقم الملف لكل مستشفى'),
+                    title: const Text('رقم الملف الطبي'),
+                    subtitle: const Text('رقمك في كل مستشفى'),
                     trailing: const Icon(Icons.chevron_left),
                     onTap: () => _openMyProfile(medical: true),
                   ),
                 ]),
               ),
               const SizedBox(height: 16),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(4, 4, 4, 10),
+                child: Text('المواعيد', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ),
               DropdownButtonFormField<int>(
                 value: const [0, 15, 30, 60, 120, 1440, 2880, 4320].contains(_defaultReminder) ? _defaultReminder : 60,
                 decoration: const InputDecoration(labelText: 'التنبيه الافتراضي للمواعيد', border: OutlineInputBorder()),

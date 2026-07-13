@@ -147,24 +147,16 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    // اللقب المفضّل — أبرز حقل
+                    // اللقب المفضّل — أبرز حقل (السؤال صار داخل عنوان الحقل)
                     Card(
                       color: cs.primaryContainer.withOpacity(0.35),
                       margin: EdgeInsets.zero,
                       child: Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Icon(Icons.favorite_outline, size: 18, color: cs.primary),
-                            const SizedBox(width: 6),
-                            const Text('كيف تحب أناديك؟', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ]),
-                          const SizedBox(height: 8),
-                          TextFormField(
-                            controller: _preferredNick,
-                            decoration: _dec('اللقب المفضّل', hint: 'أبو جاسر، أبو عبدالله...'),
-                          ),
-                        ]),
+                        child: TextFormField(
+                          controller: _preferredNick,
+                          decoration: _dec('كيف تحب أناديك؟', hint: 'أبو جاسر، أبو عبدالله...'),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
