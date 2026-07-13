@@ -6,7 +6,13 @@ import '../services/chat_prefs.dart';
 class ChatPage extends StatelessWidget {
   /// عند فتحها من إشعار الصباح: تعرض رسالة الصباح فوراً.
   final bool forceMorning;
-  const ChatPage({super.key, this.forceMorning = false});
+
+  /// عند فتحها من إشعار دواء: جاسر يسأل عن الجرعة داخل المحادثة
+  /// مع زري «أخذته» و«أعطني ١٠ دقائق».
+  final int? pendingMedId;
+  final String? pendingMedName;
+
+  const ChatPage({super.key, this.forceMorning = false, this.pendingMedId, this.pendingMedName});
 
   Future<void> _menu(BuildContext context, String v) async {
     if (v == 'clear') {
@@ -81,7 +87,7 @@ class ChatPage extends StatelessWidget {
           ),
         ],
       ),
-      body: ChatScreen(forceMorning: forceMorning),
+      body: ChatScreen(forceMorning: forceMorning, pendingMedId: pendingMedId, pendingMedName: pendingMedName),
     );
   }
 }

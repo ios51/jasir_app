@@ -11,13 +11,20 @@ import '../services/chat_service.dart';
 import '../services/chat_store.dart';
 import '../services/chat_prefs.dart';
 import '../services/settings_service.dart';
+import '../services/module_service.dart';
+import '../services/notification_service.dart';
 
 /// شاشة محادثة مباشرة مع جاسر — نفس تجربة واتساب بالضبط، بس داخل التطبيق.
 /// تدعم: نص، تسجيل صوت (المايك)، ورفع صور/PDF ليقرأها جاسر ويحفظ بياناتها.
 class ChatScreen extends StatefulWidget {
   /// عند فتحها من إشعار الصباح: اعرض رسالة الصباح فوراً (تجاوز حارس مرة/يوم).
   final bool forceMorning;
-  const ChatScreen({super.key, this.forceMorning = false});
+
+  /// عند فتحها من إشعار دواء: جاسر يسأل عن الجرعة داخل المحادثة.
+  final int? pendingMedId;
+  final String? pendingMedName;
+
+  const ChatScreen({super.key, this.forceMorning = false, this.pendingMedId, this.pendingMedName});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -105,7 +112,80 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _persist(); // احفظ رسالة الترحيب أول مرة
     }
     await _maybeShowMorning();
+    _maybeAskMedConfirm();
     _jumpToEnd();
+  }
+
+  // ── تأكيد الدواء داخل المحادثة (فُتحت من إشعار دواء) ──────────────
+  int? _medPromptId;
+  String _medPromptName = '';
+  bool _medBusy = false;
+
+  void _maybeAskMedConfirm() {
+    final id = widget.pendingMedId;
+    if (id == null || id <= 0 || !mounted) return;
+    final name = (widget.pendingMedName ?? '').isNotEmpty ? widget.pendingMedName! : 'دوائك';
+    setState(() {
+      _medPromptId = id;
+      _medPromptName = name;
+      _messages.add(ChatMessage(text: 'حان وقت دواء *$name* 💊\nأخذته؟', isMe: false));
+    });
+    _persist();
+    _scrollToBottom();
+  }
+
+  Future<void> _confirmMedTaken() async {
+    final id = _medPromptId;
+    if (id == null || _medBusy) return;
+    setState(() {
+      _medBusy = true;
+      _messages.add(ChatMessage(text: 'نعم، أخذته ✅', isMe: true));
+    });
+    _persist();
+    _scrollToBottom();
+    try {
+      await ModuleService('/api/v1/meds').action(id, 'taken');
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(text: 'تمام، سجّلت إنك أخذت *$_medPromptName* ✅\nصحّة وعافية 🌿', isMe: false));
+        _medPromptId = null;
+        _medBusy = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _messages.add(ChatMessage(text: 'تعذّر تسجيل الجرعة — تحقق من الاتصال وجرّب مرة ثانية 🙏', isMe: false));
+        _medBusy = false;
+      });
+    }
+    _persist();
+    _scrollToBottom();
+  }
+
+  Future<void> _snoozeMed() async {
+    final id = _medPromptId;
+    if (id == null || _medBusy) return;
+    setState(() {
+      _medBusy = true;
+      _messages.add(ChatMessage(text: 'أعطني ١٠ دقائق ⏰', isMe: true));
+    });
+    try {
+      await NotificationService.scheduleAt(
+        50000 + id,
+        '💊 تذكير دواء',
+        '$_medPromptName — تكرّم أكّد إنك أخذته',
+        DateTime.now().add(const Duration(minutes: 10)),
+        payload: 'med|$id|$_medPromptName',
+      );
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _messages.add(ChatMessage(text: 'طيب، بذكّرك بعد ١٠ دقائق ⏰\nلا تنسى دواء *$_medPromptName*', isMe: false));
+      _medPromptId = null;
+      _medBusy = false;
+    });
+    _persist();
+    _scrollToBottom();
   }
 
   /// يقفز لآخر المحادثة بعد اكتمال البناء (عدّة محاولات لضمان النزول).
@@ -499,6 +579,32 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
+        // زرا تأكيد الجرعة داخل المحادثة (يظهران فقط عند فتحها من إشعار دواء)
+        if (_medPromptId != null)
+          SafeArea(
+            top: false,
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              child: Row(children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _medBusy ? null : _confirmMedTaken,
+                    icon: const Icon(Icons.check_circle_outline, size: 18),
+                    label: const Text('نعم، أخذته'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _medBusy ? null : _snoozeMed,
+                    icon: const Icon(Icons.snooze, size: 18),
+                    label: const Text('أعطني ١٠ دقائق'),
+                  ),
+                ),
+              ]),
+            ),
+          ),
         SafeArea(
           top: false,
           child: Padding(

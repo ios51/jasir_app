@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/module_service.dart';
 import '../../services/notification_sync.dart';
+import '../../utils/hijri_convert.dart';
 import 'field_def.dart';
 
 /// نموذج عام لإضافة/تعديل عنصر في أي موديول، مبني من قائمة FieldDef.
@@ -18,6 +19,12 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
   late final Map<String, dynamic> _values;
   bool _saving = false;
 
+  // تحكم خاص بحقل الهجري حتى نقدر نعبّيه برمجياً عند اختيار الميلادي
+  final _hijriCtrl = TextEditingController();
+  bool get _hasHijriPair =>
+      widget.def.fields.any((f) => f.key == 'dobGreg') &&
+      widget.def.fields.any((f) => f.key == 'dobHijri');
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +37,13 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
         _values[f.key] = v.toString();
       }
     }
+    _hijriCtrl.text = (_values['dobHijri'] ?? '').toString();
+  }
+
+  @override
+  void dispose() {
+    _hijriCtrl.dispose();
+    super.dispose();
   }
 
   String _snake(String s) => s.replaceAllMapped(RegExp(r'[A-Z]'), (m) => '_${m[0]!.toLowerCase()}');
@@ -45,8 +59,16 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
       lastDate: DateTime(now.year + 10),
     );
     if (picked != null) {
-      setState(() => _values[f.key] =
-          '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}');
+      setState(() {
+        _values[f.key] =
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
+        // ميلادي → هجري تلقائياً (تاريخ الميلاد في العائلة/بياناتي)
+        if (f.key == 'dobGreg' && _hasHijriPair) {
+          final h = HijriConvert.gregorianToHijri(picked);
+          _hijriCtrl.text = h;
+          _values['dobHijri'] = h;
+        }
+      });
     }
   }
 
@@ -127,10 +149,13 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
           ),
         );
       default:
+        // حقل الهجري: تحكم خاص + تحويل فوري للميلادي عند التعديل اليدوي
+        final isHijri = f.key == 'dobHijri' && _hasHijriPair;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: TextFormField(
-            initialValue: _values[f.key] as String?,
+            controller: isHijri ? _hijriCtrl : null,
+            initialValue: isHijri ? null : _values[f.key] as String?,
             maxLines: f.type == FieldType.multiline ? 3 : 1,
             keyboardType: f.type == FieldType.number ? TextInputType.number : TextInputType.text,
             decoration: InputDecoration(
@@ -139,6 +164,13 @@ class _GenericFormScreenState extends State<GenericFormScreen> {
               border: const OutlineInputBorder(),
             ),
             validator: (v) => (f.required && (v == null || v.trim().isEmpty)) ? 'مطلوب' : null,
+            onChanged: isHijri
+                ? (v) {
+                    _values['dobHijri'] = v.trim();
+                    final g = HijriConvert.hijriToGregorian(v);
+                    if (g != null) setState(() => _values['dobGreg'] = HijriConvert.fmtGreg(g));
+                  }
+                : null,
             onSaved: (v) => _values[f.key] = v?.trim(),
           ),
         );

@@ -10,7 +10,6 @@ import 'widgets/jasir_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/chat_page.dart';
-import 'screens/meds/dose_confirm_screen.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -32,7 +31,9 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
     // اسم الدواء قد يحتوي «|» — نضم الباقي بدل أخذ الجزء الثالث فقط
     final name = parts.length > 2 ? parts.sublist(2).join('|') : 'دوائك';
     if (id > 0) {
-      nav.push(MaterialPageRoute(builder: (_) => DoseConfirmScreen(medId: id, medName: name)));
+      // يفتح المحادثة نفسها: جاسر يسأل عن الجرعة داخل المحادثة (تبقى في السجل)
+      nav.push(MaterialPageRoute(
+          builder: (_) => ChatPage(pendingMedId: id, pendingMedName: name)));
     }
   } else if (payload == 'morning') {
     nav.push(MaterialPageRoute(builder: (_) => const ChatPage(forceMorning: true)));

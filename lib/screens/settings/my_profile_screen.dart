@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_client.dart';
 import '../../services/settings_service.dart';
+import '../../utils/hijri_convert.dart';
 
 /// شاشة «بياناتي» — بيانات المستخدم نفسه (لا العائلة).
 /// تضم «اللقب المفضّل (كيف تحب أناديك)» — يُحفظ في إعدادات المستخدم،
@@ -111,9 +112,18 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
       lastDate: now,
     );
     if (d != null) {
-      setState(() => _dobGreg =
-          '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}');
+      setState(() {
+        _dobGreg = HijriConvert.fmtGreg(d);
+        // تحويل تلقائي للهجري فور اختيار الميلادي (يبقى قابلاً للتعديل)
+        _dobHijri.text = HijriConvert.gregorianToHijri(d);
+      });
     }
+  }
+
+  /// المستخدم عدّل الهجري يدوياً → حوّله للميلادي مباشرة (لو الصيغة صالحة)
+  void _onHijriChanged(String v) {
+    final g = HijriConvert.hijriToGregorian(v);
+    if (g != null) setState(() => _dobGreg = HijriConvert.fmtGreg(g));
   }
 
   InputDecoration _dec(String label, {IconData? icon, String? hint}) => InputDecoration(
@@ -186,7 +196,11 @@ class _MyProfileScreenState extends State<MyProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(controller: _dobHijri, decoration: _dec('تاريخ الميلاد (هجري)', hint: '1401-07-14')),
+                    TextFormField(
+                      controller: _dobHijri,
+                      onChanged: _onHijriChanged,
+                      decoration: _dec('تاريخ الميلاد (هجري)', hint: '1401-07-14 — يتحول للميلادي تلقائياً'),
+                    ),
                     const SizedBox(height: 12),
                     TextFormField(controller: _passport, decoration: _dec('رقم الجواز')),
                     const SizedBox(height: 24),
