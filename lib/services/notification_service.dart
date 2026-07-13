@@ -81,7 +81,7 @@ class NotificationService {
   /// هل رُكِّبت ملفات صوت الأذان في التطبيق؟ (تُضبط true لما توفّر الملفات:
   /// iOS: adhan.caf ضمن الحزمة، Android: res/raw/adhan). حتى ذلك الحين
   /// نستخدم النغمة الافتراضية بأمان بدل الإشارة لملف غير موجود.
-  static const bool _adhanBundled = false;
+  static const bool _adhanBundled = true;
 
   /// تفاصيل التنبيه حسب الصوت المطلوب:
   /// 'adhan' → صوت الأذان (إن رُكِّب)، وإلا/‏'default' → الافتراضي.

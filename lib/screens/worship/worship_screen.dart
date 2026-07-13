@@ -183,7 +183,7 @@ class _WorshipScreenState extends State<WorshipScreen> {
                     value: WorshipPrefs.sound,
                     items: const [
                       DropdownMenuItem(value: 'default', child: Text('النغمة الافتراضية')),
-                      DropdownMenuItem(value: 'adhan', child: Text('صوت الأذان (قريباً)')),
+                      DropdownMenuItem(value: 'adhan', child: Text('صوت الأذان 🕌')),
                     ],
                     onChanged: (v) { WorshipPrefs.sound = v ?? 'default'; _persist(); },
                   ),
