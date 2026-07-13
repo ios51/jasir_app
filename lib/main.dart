@@ -11,6 +11,8 @@ import 'widgets/jasir_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/chat_page.dart';
+import 'screens/worship/worship_screen.dart';
+import 'services/worship_prefs.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -41,6 +43,14 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
   } else if (payload == 'inbox') {
     // تقرير/رسالة من السيرفر — المحادثة تسحب الوارد الجديد وتعرضه
     nav.push(MaterialPageRoute(builder: (_) => const ChatPage()));
+  } else if (payload == 'worship') {
+    nav.push(MaterialPageRoute(builder: (_) => const WorshipScreen()));
+  } else if (payload.startsWith('adhkar|')) {
+    final t = payload.split('|').last; // m | e
+    nav.push(MaterialPageRoute(builder: (_) => WorshipScreen(openTarget: t)));
+  } else if (payload == 'faidah') {
+    // فائدة اليوم تُعرض داخل المحادثة (تبقى في السجل)
+    nav.push(MaterialPageRoute(builder: (_) => const ChatPage(showFaidah: true)));
   }
 }
 
@@ -50,6 +60,7 @@ void main() {
   NotificationService.onSelectPayload = handleNotificationPayload;
   ThemeController.instance.load();
   ChatPrefs.load();
+  WorshipPrefs.load(); // تفضيلات العبادة (مواقيت/أذكار/ذكر/فائدة)
   runApp(const JasirApp());
 }
 

@@ -9,6 +9,7 @@ import 'sizes/size_categories_screen.dart';
 import 'shopping/shopping_groups_screen.dart';
 import 'documents/documents_screen.dart';
 import 'links/links_grouped_screen.dart';
+import 'worship/worship_screen.dart';
 
 /// شاشة "الخدمات" — شبكة بطاقات محايدة بأيقونات ملوّنة (وفق ملف الهوية):
 /// اللون للأيقونة فقط، البطاقة محايدة، عنوان + وصف مختصر.
@@ -46,6 +47,8 @@ class ServicesGridScreen extends StatelessWidget {
           Icons.link_outlined, const Color(0xFF3C9BDF), () => const LinksGroupedScreen()),
       _ServiceTile('رسالة الصباح', 'ملخص يومك وبداية ملهمة',
           Icons.wb_sunny_outlined, const Color(0xFFE7B84B), () => const MorningSettingsScreen()),
+      _ServiceTile('العبادة', 'مواقيت الصلاة والأذكار وفائدة اليوم',
+          Icons.mosque_outlined, const Color(0xFF1F8A70), () => const WorshipScreen()),
     ];
 
     final cs = Theme.of(context).colorScheme;

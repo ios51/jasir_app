@@ -78,6 +78,30 @@ class NotificationService {
     iOS: DarwinNotificationDetails(),
   );
 
+  /// هل رُكِّبت ملفات صوت الأذان في التطبيق؟ (تُضبط true لما توفّر الملفات:
+  /// iOS: adhan.caf ضمن الحزمة، Android: res/raw/adhan). حتى ذلك الحين
+  /// نستخدم النغمة الافتراضية بأمان بدل الإشارة لملف غير موجود.
+  static const bool _adhanBundled = false;
+
+  /// تفاصيل التنبيه حسب الصوت المطلوب:
+  /// 'adhan' → صوت الأذان (إن رُكِّب)، وإلا/‏'default' → الافتراضي.
+  static NotificationDetails _detailsForSound(String? sound) {
+    if (sound == 'adhan' && _adhanBundled) {
+      return const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'jasir_adhan',
+          'أذان الصلاة',
+          channelDescription: 'تنبيه الأذان بصوته',
+          importance: Importance.max,
+          priority: Priority.high,
+          sound: RawResourceAndroidNotificationSound('adhan'),
+        ),
+        iOS: DarwinNotificationDetails(sound: 'adhan.caf'),
+      );
+    }
+    return _details;
+  }
+
   static Future<void> cancelAll() async {
     await init();
     await _plugin.cancelAll();
@@ -101,16 +125,17 @@ class NotificationService {
     }
   }
 
-  static Future<void> showNow(int id, String title, String body, {String? payload}) async {
+  static Future<void> showNow(int id, String title, String body, {String? payload, String? sound}) async {
     await init();
-    await _plugin.show(id, title, body, _details, payload: payload);
+    await _plugin.show(id, title, body, _detailsForSound(sound), payload: payload);
   }
 
   /// يجدول تنبيهاً في وقت محدد. daily=true يكرّره يومياً في نفس الساعة.
   /// payload يُمرَّر عند الضغط (مثل "med|3|فلازول" أو "morning").
+  /// sound='adhan' لتنبيه الأذان بصوته (إن رُكِّبت ملفاته).
   static Future<void> scheduleAt(
       int id, String title, String body, DateTime when,
-      {bool daily = false, String? payload}) async {
+      {bool daily = false, String? payload, String? sound}) async {
     await init();
     if (!daily && when.isBefore(DateTime.now())) return;
     final tzTime = tz.TZDateTime.from(when, tz.local);
@@ -119,7 +144,7 @@ class NotificationService {
       title,
       body,
       tzTime,
-      _details,
+      _detailsForSound(sound),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,

@@ -14,6 +14,7 @@ import '../services/chat_prefs.dart';
 import '../services/settings_service.dart';
 import '../services/module_service.dart';
 import '../services/notification_service.dart';
+import '../data/worship_content.dart';
 
 /// شاشة محادثة مباشرة مع جاسر — نفس تجربة واتساب بالضبط، بس داخل التطبيق.
 /// تدعم: نص، تسجيل صوت (المايك)، ورفع صور/PDF ليقرأها جاسر ويحفظ بياناتها.
@@ -25,7 +26,10 @@ class ChatScreen extends StatefulWidget {
   final int? pendingMedId;
   final String? pendingMedName;
 
-  const ChatScreen({super.key, this.forceMorning = false, this.pendingMedId, this.pendingMedName});
+  /// عند فتحها من إشعار «فائدة اليوم»: تُعرض الفائدة داخل المحادثة.
+  final bool showFaidah;
+
+  const ChatScreen({super.key, this.forceMorning = false, this.pendingMedId, this.pendingMedName, this.showFaidah = false});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -117,9 +121,24 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     // await _pullInbox() فيدخل المستخدم ويلقى المحادثة «بدون رسالة» حتى
     // ينتهي طلب الوارد (أو يفشل بعد مهلة). الآن يظهر السؤال حالاً.
     _maybeAskMedConfirm();
+    _maybeShowFaidah();
     _jumpToEnd();
     await _maybeShowMorning();
     await _pullInbox();
+  }
+
+  bool _faidahShown = false;
+  void _maybeShowFaidah() {
+    if (!widget.showFaidah || _faidahShown || !mounted) return;
+    _faidahShown = true;
+    final idx = DateTime.now().difference(DateTime(2020, 1, 1)).inDays % dailyFawaid.length;
+    final f = dailyFawaid[idx];
+    setState(() => _messages.add(ChatMessage(
+          text: '💡 فائدة اليوم — ${f.kind}\n\n${f.text}\n\n${f.explanation}\n\nالمصدر: ${f.source}',
+          isMe: false,
+        )));
+    _persist();
+    _scrollToBottom();
   }
 
   /// يسحب وارد السيرفر (تقرير الأمن، التحليلات...) ويعرضه كرسائل جاسر

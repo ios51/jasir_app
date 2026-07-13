@@ -12,7 +12,10 @@ class ChatPage extends StatelessWidget {
   final int? pendingMedId;
   final String? pendingMedName;
 
-  const ChatPage({super.key, this.forceMorning = false, this.pendingMedId, this.pendingMedName});
+  /// عند فتحها من إشعار «فائدة اليوم»: تُعرض الفائدة داخل المحادثة.
+  final bool showFaidah;
+
+  const ChatPage({super.key, this.forceMorning = false, this.pendingMedId, this.pendingMedName, this.showFaidah = false});
 
   Future<void> _menu(BuildContext context, String v) async {
     if (v == 'clear') {
@@ -87,7 +90,7 @@ class ChatPage extends StatelessWidget {
           ),
         ],
       ),
-      body: ChatScreen(forceMorning: forceMorning, pendingMedId: pendingMedId, pendingMedName: pendingMedName),
+      body: ChatScreen(forceMorning: forceMorning, pendingMedId: pendingMedId, pendingMedName: pendingMedName, showFaidah: showFaidah),
     );
   }
 }
