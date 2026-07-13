@@ -7,6 +7,7 @@ import 'package:record/record.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_message.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../services/api_client.dart';
 import '../services/chat_service.dart';
 import '../services/chat_store.dart';
 import '../services/chat_prefs.dart';
@@ -73,6 +74,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _maybeShowMorning();
+      _pullInbox(); // تقارير وصلت والتطبيق بالخلفية → اعرضها فور الرجوع
     }
   }
 
@@ -112,8 +114,39 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _persist(); // احفظ رسالة الترحيب أول مرة
     }
     await _maybeShowMorning();
+    await _pullInbox();
     _maybeAskMedConfirm();
     _jumpToEnd();
+  }
+
+  /// يسحب وارد السيرفر (تقرير الأمن، التحليلات...) ويعرضه كرسائل جاسر
+  /// داخل المحادثة — تبقى في السجل — ثم يعلّمها مقروءة.
+  Future<void> _pullInbox() async {
+    try {
+      final res = await ApiClient.instance.dio.get('/api/v1/inbox/unseen');
+      final items = (res.data is List) ? res.data as List : [];
+      if (items.isEmpty || !mounted) return;
+      final ids = <int>[];
+      setState(() {
+        for (final it in items) {
+          final m = Map<String, dynamic>.from(it as Map);
+          final title = (m['title'] ?? '').toString();
+          final body = (m['body'] ?? '').toString();
+          if (body.isEmpty && title.isEmpty) continue;
+          _messages.add(ChatMessage(
+            text: title.isNotEmpty ? '$title\n\n$body' : body,
+            isMe: false,
+          ));
+          final id = int.tryParse((m['id'] ?? '').toString());
+          if (id != null) ids.add(id);
+        }
+      });
+      _persist();
+      _scrollToBottom();
+      if (ids.isNotEmpty) {
+        await ApiClient.instance.dio.post('/api/v1/inbox/seen', data: {'ids': ids});
+      }
+    } catch (_) {/* بدون شبكة/سيرفر — يُعاد بالمحاولة الجاية */}
   }
 
   // ── تأكيد الدواء داخل المحادثة (فُتحت من إشعار دواء) ──────────────

@@ -83,6 +83,12 @@ class NotificationService {
     await _plugin.cancelAll();
   }
 
+  /// يلغي تنبيهاً واحداً بمعرّفه.
+  static Future<void> cancelId(int id) async {
+    await init();
+    await _plugin.cancel(id);
+  }
+
   /// يلغي فقط التنبيهات التي تملكها المزامنة (id أقل من 50000).
   /// إصلاح: cancelAll كانت تمسح أيضاً تنبيه «أعطني ١٠ دقائق»
   /// (id = 50000+medId) لو فتح المستخدم التطبيق خلال العشر دقائق —

@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'services/api_client.dart';
 import 'services/notification_service.dart';
 import 'services/notification_sync.dart';
+import 'services/push_service.dart';
 import 'services/chat_prefs.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
@@ -37,6 +38,9 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
     }
   } else if (payload == 'morning') {
     nav.push(MaterialPageRoute(builder: (_) => const ChatPage(forceMorning: true)));
+  } else if (payload == 'inbox') {
+    // تقرير/رسالة من السيرفر — المحادثة تسحب الوارد الجديد وتعرضه
+    nav.push(MaterialPageRoute(builder: (_) => const ChatPage()));
   }
 }
 
@@ -144,6 +148,8 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
       // بعد التأكد من الدخول، اطلب إذن التنبيهات وजدولها من بيانات جاسر
       if (v == true) {
         NotificationSync.run();
+        // تسجيل جهازك لإشعارات Push من السيرفر (APNs مباشرة) + توجيه ضغطاتها
+        PushService.init();
         // لو فُتح التطبيق بالضغط على إشعار (كان مغلقاً) — وجّه للشاشة المناسبة
         NotificationService.handleAppLaunch();
       }

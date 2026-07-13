@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/push_service.dart';
 import 'home_screen.dart';
 
 /// شاشة إدخال رمز التحقق المُرسَل عبر واتساب.
@@ -29,6 +30,7 @@ class _OtpScreenState extends State<OtpScreen> {
     });
     try {
       await _authService.verifyOtp(widget.phone, code);
+      PushService.init(); // سجل جهازك لإشعارات Push فور نجاح الدخول
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const HomeScreen()),

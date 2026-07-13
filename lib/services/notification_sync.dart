@@ -1,7 +1,6 @@
 import 'notification_service.dart';
 import 'events_service.dart';
 import 'tasks_service.dart';
-import 'settings_service.dart';
 import 'module_service.dart';
 
 /// يزامن التنبيهات المحلية مع بيانات جاسر: يجلب المواعيد والمهام
@@ -95,28 +94,12 @@ class NotificationSync {
         );
       }
 
-      // ── رسالة الصباح اليومية ──
-      try {
-        final s = await SettingsService().getSettings();
-        final enabled = (s['morning_enabled'] ?? 1).toString() != '0';
-        if (enabled) {
-          final time = (s['morning_time'] as String?) ?? '07:00';
-          final parts = time.split(':');
-          final h = int.tryParse(parts.isNotEmpty ? parts[0] : '7') ?? 7;
-          final m = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
-          final now = DateTime.now();
-          var when = DateTime(now.year, now.month, now.day, h, m);
-          if (when.isBefore(now)) when = when.add(const Duration(days: 1));
-          await NotificationService.scheduleAt(
-            9000,
-            '🌅 صباح الخير',
-            'رسالتك الصباحية جاهزة — افتح جاسر',
-            when,
-            daily: true,
-            payload: 'morning',
-          );
-        }
-      } catch (_) {}
+      // ── رسالة الصباح ──
+      // صار إشعارها يصل من السيرفر مباشرة (Push عبر APNs) لحظة إرسالها —
+      // يصل حتى لو كان الجوال مطفأً وقتها (يتسلمه فور التشغيل). الإشعار
+      // المحلي القديم (id 9000) أُزيل حتى لا يصلك إشعاران كل صباح،
+      // وننظف أي نسخة قديمة مجدولة منه:
+      try { await NotificationService.cancelId(9000); } catch (_) {}
     } catch (_) {}
   }
 
