@@ -79,6 +79,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _maybeShowMorning();
       _pullInbox(); // تقارير وصلت والتطبيق بالخلفية → اعرضها فور الرجوع
+      _pullPendingMed(); // جرعة حان وقتها والتطبيق بالخلفية → اعرض تأكيدها
     }
   }
 
@@ -125,6 +126,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _jumpToEnd();
     await _maybeShowMorning();
     await _pullInbox();
+    await _pullPendingMed(); // جرعة مستحقّة غير مؤكّدة (مستقل عن ضغط الإشعار)
   }
 
   bool _faidahShown = false;
@@ -180,8 +182,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void _maybeAskMedConfirm() {
     final id = widget.pendingMedId;
     if (id == null || id <= 0 || !mounted || _medAsked) return;
-    _medAsked = true; // حارس: لا يتكرر السؤال لو استُدعي مرتين (تحميل + استئناف)
-    final name = (widget.pendingMedName ?? '').isNotEmpty ? widget.pendingMedName! : 'دوائك';
+    _showMedPrompt(id, (widget.pendingMedName ?? '').isNotEmpty ? widget.pendingMedName! : 'دوائك');
+  }
+
+  void _showMedPrompt(int id, String name) {
+    if (_medAsked || !mounted) return;
+    _medAsked = true; // حارس: لا يتكرر السؤال لو استُدعي مرتين
     setState(() {
       _medPromptId = id;
       _medPromptName = name;
@@ -189,6 +195,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     });
     _persist();
     _scrollToBottom();
+  }
+
+  /// الحل الجذري لعطل «الدواء ما يظهر بالمحادثة»: بدل الاعتماد على توجيه
+  /// ضغط الإشعار (يفشل على iOS أحياناً فيبقى على الرئيسية)، نسحب من السيرفر
+  /// أي جرعة مستحقّة غير مؤكّدة ونعرض تأكيدها تلقائياً أول ما تُفتح المحادثة.
+  Future<void> _pullPendingMed() async {
+    if (_medAsked) return; // إشعار الدواء عُرض فعلاً (من الضغط)
+    try {
+      final res = await ApiClient.instance.dio.get('/api/v1/meds/pending-confirm');
+      final list = (res.data is List) ? res.data as List : [];
+      if (list.isEmpty || !mounted || _medAsked) return;
+      final m = Map<String, dynamic>.from(list.first as Map);
+      final id = int.tryParse((m['medId'] ?? '').toString()) ?? 0;
+      final name = (m['name'] ?? 'دوائك').toString();
+      if (id > 0) _showMedPrompt(id, name);
+    } catch (_) {/* بلا شبكة — يُعاد بالفتح القادم */}
   }
 
   Future<void> _confirmMedTaken() async {
