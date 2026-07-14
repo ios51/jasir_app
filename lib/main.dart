@@ -291,6 +291,10 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
         openChatIfPendingMed();
         // لو الآن ضمن 10 دقائق بعد صلاة والمستخدم مفعّل صوت الأذان — شغّله كاملاً
         maybePlayAdhan();
+      } else {
+        // جلسة منتهية (خمول 6 ساعات) والتطبيق فُتح من إشعار: خزّن وجهة
+        // الإشعار بدل إسقاطها — OtpScreen يعيد تشغيلها بعد نجاح الدخول.
+        NotificationService.stashAppLaunch();
       }
     });
   }

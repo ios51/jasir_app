@@ -13,9 +13,32 @@ class NotificationService {
   /// يُستدعى عند الضغط على إشعار — يمرّر الـpayload (main.dart يوجّه الشاشة).
   static void Function(String payload)? onSelectPayload;
 
+  /// آخر حمولة إشعار (ضغطة/إقلاع) + وقتها — تُعاد بعد الدخول لو ضاعت
+  /// بسبب انتهاء الجلسة (خمول 6 ساعات → شاشة الدخول تبتلع التوجيه).
+  static String? _pendingPayload;
+  static DateTime? _pendingAt;
+  static void _stash(String p) { _pendingPayload = p; _pendingAt = DateTime.now(); }
+
+  /// يسترجع الحمولة المعلّقة إن كانت حديثة (≤ 10 دقائق — تكفي رحلة OTP
+  /// كاملة حتى لو تأخّر رمز الواتساب) ويمسحها — تُستدعى بعد نجاح الدخول
+  /// لإعادة التوجيه الضائع. الحدّ الزمني يمنع إعادة تشغيل حمولة قديمة
+  /// عند دخولٍ لاحق لا علاقة له بالإشعار.
+  static String? takePendingPayload() {
+    final p = _pendingPayload;
+    final t = _pendingAt;
+    _pendingPayload = null;
+    _pendingAt = null;
+    if (p == null || t == null) return null;
+    if (DateTime.now().difference(t) > const Duration(minutes: 10)) return null;
+    return p;
+  }
+
   static void _handleResponse(NotificationResponse r) {
     final p = r.payload;
-    if (p != null && p.isNotEmpty) onSelectPayload?.call(p);
+    if (p != null && p.isNotEmpty) {
+      _stash(p); // لو مسحت شاشةُ الدخول التوجيهَ (جلسة منتهية) يُعاد بعد الدخول
+      onSelectPayload?.call(p);
+    }
   }
 
   static Future<void> init() async {
@@ -50,9 +73,24 @@ class NotificationService {
     if (details?.didNotificationLaunchApp == true) {
       final p = details?.notificationResponse?.payload;
       if (p != null && p.isNotEmpty) {
+        _stash(p);
         // تأخير بسيط حتى يجهز المُنقّل (main.dart يعيد المحاولة لو ما جهز)
         Future.delayed(const Duration(milliseconds: 600), () => onSelectPayload?.call(p));
       }
+    }
+  }
+
+  /// مثل [handleAppLaunch] لكن يخزّن الحمولة فقط بلا توجيه — يُستدعى عند
+  /// الإقلاع على شاشة الدخول (جلسة منتهية): التوجيه الفوري بلا فائدة لأن
+  /// الدخول سيمسح المكدّس، فتُحفظ الحمولة وتُعاد بعد نجاح الدخول (OTP).
+  static Future<void> stashAppLaunch() async {
+    if (_launchHandled) return;
+    _launchHandled = true;
+    await init();
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp == true) {
+      final p = details?.notificationResponse?.payload;
+      if (p != null && p.isNotEmpty) _stash(p);
     }
   }
 

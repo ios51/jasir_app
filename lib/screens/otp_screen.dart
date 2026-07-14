@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../services/push_service.dart';
 import 'home_screen.dart';
 
@@ -36,6 +37,10 @@ class _OtpScreenState extends State<OtpScreen> {
         MaterialPageRoute(builder: (_) => const HomeScreen()),
         (route) => false,
       );
+      // لو فُتح التطبيق من إشعار وضاع توجيهه بسبب انتهاء الجلسة —
+      // أعد تشغيله الآن فوق الرئيسية (مثل أذكار المساء → شاشة الأذكار).
+      final p = NotificationService.takePendingPayload();
+      if (p != null) NotificationService.onSelectPayload?.call(p);
     } catch (e) {
       setState(() => _error = 'رمز غير صحيح أو منتهي، تحقق من واتساب وحاول مرة ثانية');
     } finally {
