@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../main.dart' show maybeOpenAdhkar;
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/push_service.dart';
@@ -41,6 +42,8 @@ class _OtpScreenState extends State<OtpScreen> {
       // أعد تشغيله الآن فوق الرئيسية (مثل أذكار المساء → شاشة الأذكار).
       final p = NotificationService.takePendingPayload();
       if (p != null) NotificationService.onSelectPayload?.call(p);
+      // ضمانة: دخلت وقت الأذكار (جلسة كانت منتهية)؟ افتح صفحتها
+      maybeOpenAdhkar();
     } catch (e) {
       setState(() => _error = 'رمز غير صحيح أو منتهي، تحقق من واتساب وحاول مرة ثانية');
     } finally {

@@ -11,6 +11,7 @@ import 'widgets/jasir_spinner.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/chat_page.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'screens/worship/worship_screen.dart';
 import 'screens/worship/adhkar_reader_screen.dart';
 import 'data/worship_content.dart';
@@ -173,6 +174,44 @@ Future<void> openChatIfPendingMed({bool force = false}) async {
   finally { _pendingMedNavigating = false; }
 }
 
+/// ضمانة فتح الأذكار وقتها — لا تعتمد على ضغطة الإشعار إطلاقاً (نفس أسلوب
+/// تأكيد الدواء وmaybePlayAdhan: «الحقيقة من الوقت» بدل توجيه الضغطة غير
+/// الموثوق على iOS): لو فُتح التطبيق — بأي طريقة — خلال ١٥ دقيقة بعد وقت
+/// أذكار الصباح/المساء، تُفتح صفحة الأذكار تلقائياً مرة واحدة لكل فترة/يوم.
+Future<void> maybeOpenAdhkar() async {
+  await WorshipPrefs.ensureLoaded();
+  if (!WorshipPrefs.adhkarEnabled) return;
+  final now = DateTime.now();
+  DateTime? parse(String hm) {
+    final p = hm.split(':');
+    if (p.length != 2) return null;
+    final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+    if (h == null || m == null) return null;
+    return DateTime(now.year, now.month, now.day, h, m);
+  }
+  bool inWindow(DateTime? t) =>
+      t != null && !now.isBefore(t) && now.difference(t) < const Duration(minutes: 15);
+  String? period;
+  if (inWindow(parse(WorshipPrefs.morningTime))) {
+    period = 'm';
+  } else if (inWindow(parse(WorshipPrefs.eveningTime))) {
+    period = 'e';
+  }
+  if (period == null) return;
+  const s = FlutterSecureStorage();
+  const key = 'jasir_adhkar_auto_opened';
+  final stamp = '${now.year}-${now.month}-${now.day}|$period';
+  try {
+    if (await s.read(key: key) == stamp) return; // فُتحت لهذه الفترة اليوم
+  } catch (_) {}
+  try {
+    await s.write(key: key, value: stamp);
+  } catch (_) {}
+  // نفس مسار الإشعار: فيه إزالة الازدواج (لو وصلت الضغطة فعلاً لن تُفتح
+  // مرتين) وإعادة المحاولة حتى يجهز المُنقّل.
+  handleNotificationPayload('adhkar|$period');
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   NotificationService.init();
@@ -313,6 +352,8 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
         openChatIfPendingMed();
         // لو الآن ضمن 10 دقائق بعد صلاة والمستخدم مفعّل صوت الأذان — شغّله كاملاً
         maybePlayAdhan();
+        // لو الآن وقت أذكار الصباح/المساء — افتح صفحتها (ضمانة بلا ضغطة)
+        maybeOpenAdhkar();
       } else {
         // جلسة منتهية (خمول 6 ساعات) والتطبيق فُتح من إشعار: خزّن وجهة
         // الإشعار بدل إسقاطها — OtpScreen يعيد تشغيلها بعد نجاح الدخول.
@@ -335,6 +376,7 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
       NotificationSync.run();
       openChatIfPendingMed(); // جرعة حان وقتها والتطبيق بالخلفية → افتح المحادثة
       maybePlayAdhan(); // العودة قرب وقت الصلاة → شغّل الأذان الكامل مرة واحدة
+      maybeOpenAdhkar(); // العودة وقت الأذكار → افتح صفحتها (مرة لكل فترة/يوم)
     }
   }
 

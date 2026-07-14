@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import UserNotifications
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -18,6 +19,11 @@ import UIKit
   ) -> Bool {
     // تسجيل الجهاز لدى أبل (إذن الإشعارات نفسه يُطلب من جهة فلاتر)
     application.registerForRemoteNotifications()
+    // شرط أبل: مستقبِل الإشعارات يجب تعيينه قبل اكتمال الإقلاع، وإلا
+    // ضغطة الإشعار التي فتحت التطبيق (وهو مغلق) لا تُسلَّم لأحد إطلاقاً —
+    // كانت willPresent/didReceive أعلاه لا تُستدعى فتضيع الضغطة ويفتح
+    // التطبيق على الرئيسية. لا نعتمد على تعيين Flutter الشرطي (إن كان nil).
+    UNUserNotificationCenter.current().delegate = self
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
