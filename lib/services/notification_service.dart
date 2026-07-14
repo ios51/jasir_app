@@ -33,12 +33,17 @@ class NotificationService {
     return p;
   }
 
+  /// نقطة تسليم موحّدة لأي ضغطة إشعار (محلي أو Push، من فلاتر أو من
+  /// الجانب الأصلي): تخزّن الحمولة (للاستعادة بعد الدخول لو ضاعت بسبب
+  /// انتهاء الجلسة) ثم توجّه. إزالة الازدواج تتم في handleNotificationPayload.
+  static void deliverPayload(String p) {
+    _stash(p);
+    onSelectPayload?.call(p);
+  }
+
   static void _handleResponse(NotificationResponse r) {
     final p = r.payload;
-    if (p != null && p.isNotEmpty) {
-      _stash(p); // لو مسحت شاشةُ الدخول التوجيهَ (جلسة منتهية) يُعاد بعد الدخول
-      onSelectPayload?.call(p);
-    }
+    if (p != null && p.isNotEmpty) deliverPayload(p);
   }
 
   static Future<void> init() async {
@@ -75,7 +80,7 @@ class NotificationService {
       if (p != null && p.isNotEmpty) {
         _stash(p);
         // تأخير بسيط حتى يجهز المُنقّل (main.dart يعيد المحاولة لو ما جهز)
-        Future.delayed(const Duration(milliseconds: 600), () => onSelectPayload?.call(p));
+        Future.delayed(const Duration(milliseconds: 600), () => deliverPayload(p));
       }
     }
   }

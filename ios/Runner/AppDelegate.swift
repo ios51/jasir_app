@@ -9,6 +9,8 @@ import UIKit
   static var pendingToken: String?
   /// ضغطة إشعار فتحت التطبيق وهو مغلق — تُسلَّم عند الطلب
   static var pendingTap: String?
+  /// وقت الضغطة — نسقطها إن تجاوزت ١٠ دقائق (تطابق مهلة جانب فلاتر)
+  static var pendingTapAt: Date?
 
   override func application(
     _ application: UIApplication,
@@ -29,8 +31,12 @@ import UIKit
         case "getToken":
           result(AppDelegate.pendingToken)
         case "getPendingTap":
-          let tap = AppDelegate.pendingTap
+          var tap = AppDelegate.pendingTap
+          if let at = AppDelegate.pendingTapAt, Date().timeIntervalSince(at) > 600 {
+            tap = nil
+          }
           AppDelegate.pendingTap = nil
+          AppDelegate.pendingTapAt = nil
           result(tap)
         default:
           result(FlutterMethodNotImplemented)
@@ -66,17 +72,29 @@ import UIKit
     }
   }
 
-  // ضغط المستخدم على إشعار Push → نمرر الوجهة لفلاتر (محادثة/صباح...)
+  // ضغط المستخدم على أي إشعار → نمرر الوجهة لفلاتر (محادثة/أذكار/صلاة...)
+  // Push من السيرفر يحمل الوجهة في userInfo["jasir"]["payload"]،
+  // والإشعار المحلي (flutter_local_notifications) يحملها في userInfo["payload"].
+  // كنا نمرر Push فقط، فكانت ضغطة الإشعار المحلي تضيع عند الإقلاع البارد
+  // (سباق تسجيل الإضافة) ويفتح التطبيق على الرئيسية. الآن نلتقطها هنا
+  // بشكل حتمي ونسلمها عبر نفس القناة — وفلاتر يزيل أي ازدواج.
   override func userNotificationCenter(
     _ center: UNUserNotificationCenter,
     didReceive response: UNNotificationResponse,
     withCompletionHandler completionHandler: @escaping () -> Void
   ) {
     let userInfo = response.notification.request.content.userInfo
+    var payload: String?
     if let jasir = userInfo["jasir"] as? [String: Any],
-       let payload = jasir["payload"] as? String {
-      AppDelegate.pendingTap = payload
-      AppDelegate.pushChannel?.invokeMethod("onPushTap", arguments: payload)
+       let p = jasir["payload"] as? String {
+      payload = p
+    } else if let p = userInfo["payload"] as? String, !p.isEmpty {
+      payload = p
+    }
+    if let p = payload {
+      AppDelegate.pendingTap = p
+      AppDelegate.pendingTapAt = Date()
+      AppDelegate.pushChannel?.invokeMethod("onPushTap", arguments: p)
     }
     super.userNotificationCenter(center, didReceive: response, withCompletionHandler: completionHandler)
   }

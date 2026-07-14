@@ -23,7 +23,8 @@ class PushService {
         case 'onPushTap':
           final p = call.arguments as String?;
           if (p != null && p.isNotEmpty) {
-            NotificationService.onSelectPayload?.call(p);
+            // تسليم موحّد: يخزّن (للاستعادة بعد الدخول) ثم يوجّه
+            NotificationService.deliverPayload(p);
           }
           break;
       }
@@ -40,7 +41,7 @@ class PushService {
       final tap = await _channel.invokeMethod<String>('getPendingTap');
       if (tap != null && tap.isNotEmpty) {
         Future.delayed(const Duration(milliseconds: 600),
-            () => NotificationService.onSelectPayload?.call(tap));
+            () => NotificationService.deliverPayload(tap));
       }
     } catch (_) {}
   }

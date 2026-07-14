@@ -12,6 +12,8 @@ import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/chat_page.dart';
 import 'screens/worship/worship_screen.dart';
+import 'screens/worship/adhkar_reader_screen.dart';
+import 'data/worship_content.dart';
 import 'services/worship_prefs.dart';
 import 'services/adhan_player.dart';
 import 'utils/prayer_times.dart';
@@ -25,7 +27,22 @@ final GlobalKey<ScaffoldMessengerState> rootMessengerKey =
 /// يوجّه الضغط على الإشعار للشاشة المناسبة (دواء → تأكيد، صباح → المحادثة).
 /// [attempt]: لو المُنقّل ما جهز بعد (إقلاع بارد بطيء) نعيد المحاولة بدل
 /// ما نُسقط الضغطة بصمت — كانت تضيع لو 600ms ما كفت.
+/// إزالة ازدواج: نفس الضغطة قد تصل من مسارين (إضافة فلاتر + قناة الجانب
+/// الأصلي في AppDelegate) — نتجاهل نفس الحمولة إن تكررت خلال ثوانٍ.
+String? _lastHandledPayload;
+DateTime? _lastHandledAt;
+
 void handleNotificationPayload(String payload, [int attempt = 0]) {
+  if (attempt == 0) {
+    final now = DateTime.now();
+    if (payload == _lastHandledPayload &&
+        _lastHandledAt != null &&
+        now.difference(_lastHandledAt!) < const Duration(seconds: 4)) {
+      return;
+    }
+    _lastHandledPayload = payload;
+    _lastHandledAt = now;
+  }
   final nav = rootNavigatorKey.currentState;
   if (nav == null) {
     if (attempt < 12) {
@@ -48,8 +65,13 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
   } else if (payload == 'worship') {
     nav.push(MaterialPageRoute(builder: (_) => const WorshipScreen()));
   } else if (payload.startsWith('adhkar|')) {
-    final t = payload.split('|').last; // m | e
-    nav.push(MaterialPageRoute(builder: (_) => WorshipScreen(openTarget: t)));
+    // افتح صفحة الأذكار نفسها مباشرة (بلا المرور على شاشة العبادة) —
+    // الرجوع منها يعيدك للشاشة اللي كنت عليها.
+    final morning = payload.split('|').last == 'm';
+    nav.push(MaterialPageRoute(
+        builder: (_) => AdhkarReaderScreen(
+            title: morning ? 'أذكار الصباح' : 'أذكار المساء',
+            items: morning ? morningAdhkar : eveningAdhkar)));
   } else if (payload == 'faidah') {
     // فائدة اليوم تُعرض داخل المحادثة (تبقى في السجل)
     nav.push(MaterialPageRoute(builder: (_) => const ChatPage(showFaidah: true)));
