@@ -101,7 +101,7 @@ class _WorshipScreenState extends State<WorshipScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: AppBar(title: const Text('العبادة')),
+        appBar: AppBar(title: const Text('أذكار المؤمن')),
         body: ListView(
           padding: const EdgeInsets.all(16),
           children: [

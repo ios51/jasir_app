@@ -5,7 +5,7 @@ import 'services/notification_service.dart';
 import 'services/notification_sync.dart';
 import 'services/push_service.dart';
 import 'services/chat_prefs.dart';
-import 'theme/app_theme.dart';
+import 'theme/jasir_theme.dart';
 import 'theme/theme_controller.dart';
 import 'widgets/jasir_spinner.dart';
 import 'screens/login_screen.dart';
@@ -14,8 +14,14 @@ import 'screens/chat_page.dart';
 import 'screens/worship/worship_screen.dart';
 import 'services/worship_prefs.dart';
 import 'services/services_prefs.dart';
+import 'services/adhan_player.dart';
+import 'utils/prayer_times.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
+/// مفتاح مُرسِل السقالة الجذري — لإظهار شريط «إيقاف الأذان» من أي مكان.
+final GlobalKey<ScaffoldMessengerState> rootMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
 
 /// يوجّه الضغط على الإشعار للشاشة المناسبة (دواء → تأكيد، صباح → المحادثة).
 /// [attempt]: لو المُنقّل ما جهز بعد (إقلاع بارد بطيء) نعيد المحاولة بدل
@@ -48,7 +54,67 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
   } else if (payload == 'faidah') {
     // فائدة اليوم تُعرض داخل المحادثة (تبقى في السجل)
     nav.push(MaterialPageRoute(builder: (_) => const ChatPage(showFaidah: true)));
+  } else if (payload.startsWith('prayer|')) {
+    // ضغط إشعار الأذان: افتح شاشة العبادة (نفس السلوك السابق) وشغّل الأذان
+    // الكامل لهذه الصلاة (ضغط صريح → يتجاوز نافذة الـ10 دقائق، ويحترم التفضيلات
+    // ونفس حارس «مرة لكل صلاة»).
+    final name = payload.split('|').last;
+    nav.push(MaterialPageRoute(builder: (_) => const WorshipScreen()));
+    maybePlayAdhan(prayerName: name);
   }
+}
+
+// ── تشغيل الأذان الكامل عند وقت الصلاة ─────────────────────────────
+// مسار الفتح/العودة (بلا [prayerName]): لو الآن ضمن 10 دقائق بعد إحدى الصلوات
+// الخمس، والمستخدم مفعّل الأذان واختار صوت الأذان — نشغّل الأذان الكامل مرة
+// واحدة لكل صلاة (حارس AdhanGuard). مسار ضغط الإشعار يمرّر [prayerName] فيتجاوز
+// نافذة الوقت (ضغط صريح) لكن يبقى محكوماً بالتفضيلات ونفس الحارس.
+Future<void> maybePlayAdhan({String? prayerName}) async {
+  // انتظر اكتمال أول تحميل للتفضيلات — بلا هذا، عند الإقلاع البارد تُقرأ
+  // sound='default' الافتراضية قبل وصول القيمة الحقيقية فيسقط الأذان بصمت.
+  await WorshipPrefs.ensureLoaded();
+  if (!WorshipPrefs.adhanEnabled) return;
+  if (WorshipPrefs.sound != 'adhan') return; // فقط عند اختيار «صوت الأذان»
+
+  final now = DateTime.now();
+  String? targetName = prayerName;
+
+  if (targetName == null) {
+    final city = saudiCities[
+        (WorshipPrefs.cityIndex >= 0 && WorshipPrefs.cityIndex < saudiCities.length)
+            ? WorshipPrefs.cityIndex
+            : 0];
+    final pt = PrayerTimes.forDate(
+        DateTime(now.year, now.month, now.day), city.lat, city.lng, 3.0);
+    final prayers = <String, DateTime>{
+      'الفجر': pt.fajr,
+      'الظهر': pt.dhuhr,
+      'العصر': pt.asr,
+      'المغرب': pt.maghrib,
+      'العشاء': pt.isha,
+    };
+    for (final e in prayers.entries) {
+      final diffMin = now.difference(e.value).inMinutes; // موجب لو الآن بعد الأذان
+      if (diffMin >= 0 && diffMin < 10) {
+        targetName = e.key;
+        break;
+      }
+    }
+    if (targetName == null) return; // خارج نافذة أي صلاة
+  }
+
+  final dateKey = '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+      '${now.day.toString().padLeft(2, '0')}';
+  final key = '$dateKey|$targetName';
+
+  // حارس «مرة واحدة لكل صلاة» (يمنع تكرارها من مسارَي الفتح والضغط)
+  final last = await AdhanGuard.lastPlayedKey();
+  if (last == key) return;
+
+  // لا نخزّن الحارس إلا بعد نجاح بدء التشغيل فعلاً — لو فشل التشغيل تبقى
+  // المحاولة متاحة عند الفتح/العودة التالية ضمن النافذة (ملاحظة المدقق).
+  final ok = await AdhanPlayer.instance.playFullAdhan();
+  if (ok) await AdhanGuard.setLastPlayedKey(key);
 }
 
 // ── فتح المحادثة تلقائياً عند وجود جرعة مستحقّة غير مؤكّدة ──────────
@@ -92,7 +158,7 @@ void main() {
   NotificationService.onSelectPayload = handleNotificationPayload;
   ThemeController.instance.load();
   ChatPrefs.load();
-  WorshipPrefs.load(); // تفضيلات العبادة (مواقيت/أذكار/ذكر/فائدة)
+  WorshipPrefs.ensureLoaded(); // تفضيلات العبادة (مواقيت/أذكار/ذكر/فائدة)
   ServicesPrefs.load(); // ترتيب بطاقات الخدمات المختار
   runApp(const JasirApp());
 }
@@ -109,12 +175,36 @@ class _JasirAppState extends State<JasirApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // أظهر/أخفِ شريط «إيقاف الأذان» تبعاً لحالة تشغيل الأذان.
+    AdhanPlayer.instance.playing.addListener(_onAdhanPlayingChanged);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    AdhanPlayer.instance.playing.removeListener(_onAdhanPlayingChanged);
     super.dispose();
+  }
+
+  /// يعرض شريط الإيقاف عند تشغيل الأذان ويزيله عند إيقافه/اكتماله.
+  void _onAdhanPlayingChanged() {
+    final m = rootMessengerKey.currentState;
+    if (m == null) return;
+    if (AdhanPlayer.instance.playing.value) {
+      m.clearMaterialBanners();
+      m.showMaterialBanner(MaterialBanner(
+        content: const Text('يُرفع الأذان الآن'),
+        leading: const Icon(Icons.volume_up),
+        actions: [
+          TextButton(
+            onPressed: () => AdhanPlayer.instance.stop(),
+            child: const Text('إيقاف الأذان'),
+          ),
+        ],
+      ));
+    } else {
+      m.clearMaterialBanners();
+    }
   }
 
   @override
@@ -149,6 +239,7 @@ class _JasirAppState extends State<JasirApp> with WidgetsBindingObserver {
       animation: tc,
       builder: (context, _) => MaterialApp(
         navigatorKey: rootNavigatorKey,
+        scaffoldMessengerKey: rootMessengerKey,
         title: 'جاسر',
         debugShowCheckedModeBanner: false,
         locale: const Locale('ar'),
@@ -158,8 +249,10 @@ class _JasirAppState extends State<JasirApp> with WidgetsBindingObserver {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
+        theme: JasirTheme.light(),
+        darkTheme: JasirTheme.dark(),
+        // ThemeMode.system افتراضًا (tc.mode = system عند عدم اختيار المستخدم)،
+        // مع احترام مبدّل المظهر في الإعدادات إن اختار المستخدم فاتح/داكن يدويًا.
         themeMode: tc.mode,
         builder: (ctx, child) => MediaQuery(
           data: MediaQuery.of(ctx)
@@ -198,6 +291,8 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
         NotificationService.handleAppLaunch();
         // لو فيه جرعة مستحقّة الآن — افتح المحادثة عليها تلقائياً
         openChatIfPendingMed();
+        // لو الآن ضمن 10 دقائق بعد صلاة والمستخدم مفعّل صوت الأذان — شغّله كاملاً
+        maybePlayAdhan();
       }
     });
   }
@@ -215,6 +310,7 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
     if (state == AppLifecycleState.resumed && _loggedIn == true) {
       NotificationSync.run();
       openChatIfPendingMed(); // جرعة حان وقتها والتطبيق بالخلفية → افتح المحادثة
+      maybePlayAdhan(); // العودة قرب وقت الصلاة → شغّل الأذان الكامل مرة واحدة
     }
   }
 

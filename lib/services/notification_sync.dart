@@ -219,8 +219,10 @@ class NotificationSync {
         };
         prayers.forEach((name, t) {
           if (WorshipPrefs.adhanEnabled && t.isAfter(now)) {
+            // payload 'prayer|<اسم>' (بدل 'worship' الغامض المتشارَك مع الإقامة
+            // والذكر) — الضغط عليه يفتح العبادة ويشغّل الأذان الكامل لهذه الصلاة.
             out.add(_Sched('🕌 حان الآن وقت أذان $name',
-                'حيّ على الصلاة — ${_hm(t)}', t, payload: 'worship', sound: WorshipPrefs.sound));
+                'حيّ على الصلاة — ${_hm(t)}', t, payload: 'prayer|$name', sound: WorshipPrefs.sound));
           }
           if (WorshipPrefs.iqamaEnabled) {
             final iq = t.add(Duration(minutes: WorshipPrefs.iqamaDelay));

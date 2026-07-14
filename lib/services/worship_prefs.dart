@@ -28,6 +28,12 @@ class WorshipPrefs {
   static bool _b(String? v, bool d) => v == null ? d : v == '1';
   static int _i(String? v, int d) => int.tryParse(v ?? '') ?? d;
 
+  /// أول تحميل للتفضيلات (يُخزَّن ليُنتظر). يمنع سباق الإقلاع البارد:
+  /// maybePlayAdhan كانت تقرأ sound='default' قبل اكتمال القراءة من التخزين
+  /// فيسقط الأذان بصمت. من ينتظر ensureLoaded يضمن اكتمال أول تحميل.
+  static Future<void>? _loadFuture;
+  static Future<void> ensureLoaded() => _loadFuture ??= load();
+
   static Future<void> load() async {
     try {
       cityIndex = _i(await _s.read(key: '${_k}city'), 0);
