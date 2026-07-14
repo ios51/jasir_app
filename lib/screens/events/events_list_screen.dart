@@ -58,7 +58,7 @@ class _EventsListScreenState extends State<EventsListScreen> {
             ],
           ),
           onTap: () => _openForm(event: e),
-          trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _delete(e)),
+          trailing: IconButton(icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error), onPressed: () => _delete(e)),
         ),
       );
 

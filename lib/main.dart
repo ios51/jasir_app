@@ -13,7 +13,6 @@ import 'screens/home_screen.dart';
 import 'screens/chat_page.dart';
 import 'screens/worship/worship_screen.dart';
 import 'services/worship_prefs.dart';
-import 'services/services_prefs.dart';
 import 'services/adhan_player.dart';
 import 'utils/prayer_times.dart';
 
@@ -159,7 +158,6 @@ void main() {
   ThemeController.instance.load();
   ChatPrefs.load();
   WorshipPrefs.ensureLoaded(); // تفضيلات العبادة (مواقيت/أذكار/ذكر/فائدة)
-  ServicesPrefs.load(); // ترتيب بطاقات الخدمات المختار
   runApp(const JasirApp());
 }
 

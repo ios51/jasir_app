@@ -99,7 +99,7 @@ class _LinksGroupedScreenState extends State<LinksGroupedScreen> {
                                       trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                                         IconButton(icon: Icon(Icons.open_in_new, color: cs.primary), tooltip: 'فتح', onPressed: () => _open(l)),
                                         IconButton(icon: Icon(Icons.edit_outlined, color: cs.secondary), tooltip: 'تعديل', onPressed: () => _edit(existing: l)),
-                                        IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _delete(l)),
+                                        IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(l)),
                                       ]),
                                     )).toList(),
                               ),

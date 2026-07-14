@@ -617,19 +617,20 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
         if (_recording)
           Container(
             width: double.infinity,
-            color: Colors.red.shade50,
+            color: cs.errorContainer,
             padding: const EdgeInsets.symmetric(vertical: 6),
-            child: const Row(
+            child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.fiber_manual_record, color: Colors.red, size: 14),
-                SizedBox(width: 6),
-                Text('جاري التسجيل... اضغط زر المايك مرة ثانية للإيقاف والإرسال', style: TextStyle(color: Colors.red)),
+                Icon(Icons.fiber_manual_record, color: cs.onErrorContainer, size: 14),
+                const SizedBox(width: 6),
+                Text('جاري التسجيل... اضغط زر المايك مرة ثانية للإيقاف والإرسال', style: TextStyle(color: cs.onErrorContainer)),
               ],
             ),
           ),
@@ -725,8 +726,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   onPressed: _sending ? null : _toggleRecording,
                   icon: Icon(_recording ? Icons.stop : Icons.mic),
                   style: IconButton.styleFrom(
-                    backgroundColor: _recording ? Colors.red : Colors.grey.shade300,
-                    foregroundColor: _recording ? Colors.white : Colors.black87,
+                    backgroundColor: _recording ? cs.error : cs.surfaceContainerHighest,
+                    foregroundColor: _recording ? cs.onError : cs.onSurfaceVariant,
                   ),
                   tooltip: _recording ? 'إيقاف التسجيل وإرسال' : 'تسجيل صوتي',
                 ),

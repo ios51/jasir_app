@@ -139,7 +139,7 @@ class _ShoppingGroupsScreenState extends State<ShoppingGroupsScreen> {
                                   ),
                               ]),
                               trailing: IconButton(
-                                icon: Icon(owner ? Icons.delete_outline : Icons.logout, color: Colors.redAccent),
+                                icon: Icon(owner ? Icons.delete_outline : Icons.logout, color: cs.error),
                                 onPressed: () => _delete(g),
                               ),
                               onTap: () => Navigator.of(context).push(MaterialPageRoute(

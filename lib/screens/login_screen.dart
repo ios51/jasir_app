@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
-import '../theme/app_theme.dart';
 import 'otp_screen.dart';
 
 /// شاشة إدخال رقم الجوال لبدء تسجيل الدخول (يُرسل رمز التحقق عبر واتساب).
@@ -62,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: AppTheme.teal.withOpacity(0.30),
+                        color: cs.primary.withOpacity(0.30),
                         blurRadius: 24,
                         offset: const Offset(0, 10),
                       ),

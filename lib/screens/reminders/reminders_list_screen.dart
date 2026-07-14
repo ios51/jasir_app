@@ -98,7 +98,7 @@ class _RemindersListScreenState extends State<RemindersListScreen> {
                     subtitle: Text('${r.remindAt}  •  ${_repeatLabel(r.repeatType)}'),
                     onTap: () => _openForm(reminder: r),
                     trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                      icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
                       onPressed: () => _delete(r),
                     ),
                   ),

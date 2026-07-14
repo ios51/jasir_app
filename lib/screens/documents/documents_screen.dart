@@ -217,7 +217,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                                   onPressed: () => hasFile ? _view(d) : _attach(d),
                                 ),
                                 IconButton(icon: Icon(Icons.edit_outlined, color: cs.secondary), tooltip: 'تعديل', onPressed: () => _edit(d)),
-                                IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _delete(d)),
+                                IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(d)),
                               ]),
                             ),
                           );

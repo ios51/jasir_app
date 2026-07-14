@@ -142,7 +142,7 @@ class _ShoppingGroupItemsScreenState extends State<ShoppingGroupItemsScreen> {
                                     title: Text(it['name']?.toString() ?? '', style: TextStyle(fontWeight: FontWeight.bold, decoration: done ? TextDecoration.lineThrough : null, color: done ? cs.onSurfaceVariant : cs.onSurface)),
                                     subtitle: meta.isEmpty ? null : Text(meta.join('  •  '), style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12.5)),
                                     onTap: () => _edit(it),
-                                    trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _delete(it)),
+                                    trailing: IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(it)),
                                   ),
                                 );
                               },

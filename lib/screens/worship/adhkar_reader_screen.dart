@@ -73,7 +73,7 @@ class _AdhkarReaderScreenState extends State<AdhkarReaderScreen> {
                             ),
                           ),
                           const Spacer(),
-                          Text('اضغط للعدّ', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text('اضغط للعدّ', style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
                         ],
                       ),
                     ],

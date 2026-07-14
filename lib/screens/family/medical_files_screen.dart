@@ -151,7 +151,7 @@ class _MedicalFilesScreenState extends State<MedicalFilesScreen> {
                                   leading: Icon(Icons.local_hospital_outlined, color: cs.primary),
                                   title: Text(f['hospital']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                                   subtitle: Text('رقم الملف: ${f['file_number'] ?? ''}'),
-                                  trailing: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => _delete(f)),
+                                  trailing: IconButton(icon: Icon(Icons.delete_outline, color: cs.error), onPressed: () => _delete(f)),
                                 ),
                                 // التقارير المرفقة (على الجهاز)
                                 ...reports.map((r) => ListTile(

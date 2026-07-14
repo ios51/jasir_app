@@ -593,7 +593,7 @@ class _ServiceTile {
 }
 
 /// تبويبات المواعيد/التذكيرات/المهام في شاشة واحدة.
-/// (تُستخدم أيضًا من home_screen.dart و home_dashboard.dart — يبقى الاسم كما هو.)
+/// (تُستخدم أيضًا من home_screen.dart — يبقى الاسم كما هو.)
 class AppointmentsTabsScreen extends StatelessWidget {
   const AppointmentsTabsScreen({super.key});
   @override

@@ -161,7 +161,7 @@ class _SizeCategoriesScreenState extends State<SizeCategoriesScreen> {
                           title: Text(c['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(isPerson ? 'شخص' : 'مكان/عام'),
                           trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                            icon: Icon(Icons.delete_outline, color: cs.error),
                             onPressed: () => _deleteCategory(c),
                           ),
                           onTap: () => Navigator.of(context).push(MaterialPageRoute(
@@ -216,7 +216,7 @@ class _SizeCategoriesScreenState extends State<SizeCategoriesScreen> {
         ),
         onTap: () => _editItem(it),
         trailing: IconButton(
-          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+          icon: Icon(Icons.delete_outline, color: cs.error),
           onPressed: () => _deleteItem(it),
         ),
       ),

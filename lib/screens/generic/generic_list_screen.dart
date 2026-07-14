@@ -116,26 +116,26 @@ class _GenericListScreenState extends State<GenericListScreen> {
                       children: [
                         if (def.itemAction != null)
                           IconButton(
-                            icon: Icon(def.itemActionIcon ?? Icons.open_in_new, color: Colors.teal),
+                            icon: Icon(def.itemActionIcon ?? Icons.open_in_new, color: Theme.of(context).colorScheme.primary),
                             tooltip: def.itemActionTooltip ?? 'فتح',
                             onPressed: () => def.itemAction!(context, item),
                           ),
                         if (def.itemScreen != null)
                           IconButton(
-                            icon: Icon(def.itemScreenIcon ?? Icons.build_outlined, color: Colors.teal),
+                            icon: Icon(def.itemScreenIcon ?? Icons.build_outlined, color: Theme.of(context).colorScheme.primary),
                             tooltip: def.itemScreenTooltip ?? 'سجل',
                             onPressed: () => Navigator.of(context).push(
                               MaterialPageRoute(builder: (ctx) => def.itemScreen!(ctx, item)),
                             ),
                           ),
                         ...def.actions.map((a) => IconButton(
-                              icon: Icon(a.icon, color: Colors.teal),
+                              icon: Icon(a.icon, color: Theme.of(context).colorScheme.primary),
                               tooltip: a.label,
                               onPressed: () => _runAction(item, a),
                             )),
                         if (def.canDelete)
                           IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                            icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
                             onPressed: () => _delete(item),
                           ),
                       ],

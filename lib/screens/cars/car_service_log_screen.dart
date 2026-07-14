@@ -129,13 +129,13 @@ class _CarServiceLogScreenState extends State<CarServiceLogScreen> {
                             if (it['notes'] != null && it['notes'].toString().isNotEmpty) sub.add('📝 ${it['notes']}');
                             return Card(
                               child: ListTile(
-                                leading: const Icon(Icons.build_circle_outlined, color: Colors.teal),
+                                leading: Icon(Icons.build_circle_outlined, color: Theme.of(context).colorScheme.primary),
                                 title: Text(it['service_type']?.toString() ?? 'صيانة',
                                     style: const TextStyle(fontWeight: FontWeight.bold)),
                                 subtitle: sub.isEmpty ? null : Text(sub.join('\n')),
                                 isThreeLine: sub.length > 1,
                                 trailing: Text(_fmtCost(it['cost']),
-                                    style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.primary)),
                               ),
                             );
                           },
