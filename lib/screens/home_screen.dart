@@ -5,13 +5,81 @@ import 'services_grid_screen.dart';
 import 'chat_page.dart';
 import 'settings/app_settings_screen.dart';
 import 'login_screen.dart';
+import 'events/events_list_screen.dart';
+import 'reminders/reminders_list_screen.dart';
+import 'tasks/tasks_list_screen.dart';
+import 'shopping/shopping_groups_screen.dart';
+import 'documents/documents_screen.dart';
+import 'links/links_grouped_screen.dart';
+import 'sizes/size_categories_screen.dart';
+import 'worship/worship_screen.dart';
 import '../services/auth_service.dart';
+import '../services/nav_prefs.dart';
 
-/// الشاشة الرئيسية — شريط تنقل سفلي من 4 عناصر (وفق الموكب):
-/// الرئيسية · المواعيد · الأدوية · العائلة.
-/// تبويب «الرئيسية» يعرض الآن شبكة الخدمات المجمّعة دلاليًا (ServicesGridScreen)
-/// وفق design-system/MASTER.md — حلّ محلّ HomeDashboard القديمة، وأُزيل تبويب
-/// «المزيد» الذي كان يكرّر نفس الشبكة.
+/// خيار تبويب متاح للشريط السفلي — المستخدم يختار ٣ منها (والرئيسية ثابتة).
+class NavTabOption {
+  final String id;
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final Widget Function() builder;
+  const NavTabOption(this.id, this.label, this.icon, this.selectedIcon, this.builder);
+}
+
+/// كل الخدمات المتاحة للشريط السفلي (نفس وجهات شبكة الخدمات).
+final List<NavTabOption> kNavCatalog = [
+  NavTabOption('appointments', 'المواعيد', Icons.calendar_today_outlined,
+      Icons.calendar_today, () => const AppointmentsTabsScreen()),
+  NavTabOption('meds', 'الأدوية', Icons.medication_outlined, Icons.medication,
+      () => GenericListScreen(def: ModuleRegistry.meds)),
+  NavTabOption('family', 'العائلة', Icons.people_outline, Icons.people,
+      () => GenericListScreen(def: ModuleRegistry.family)),
+  NavTabOption('tasks', 'المهام', Icons.checklist_outlined, Icons.checklist,
+      () => _titled('المهام', const TasksListScreen())),
+  NavTabOption('reminders', 'التذكيرات', Icons.alarm_outlined, Icons.alarm,
+      () => _titled('التذكيرات', const RemindersListScreen())),
+  NavTabOption('events', 'مواعيدي', Icons.event_outlined, Icons.event,
+      () => _titled('مواعيدي', const EventsListScreen())),
+  NavTabOption('worship', 'الأذكار', Icons.mosque_outlined, Icons.mosque,
+      () => const WorshipScreen()),
+  NavTabOption('shopping', 'مشترياتي', Icons.shopping_cart_outlined,
+      Icons.shopping_cart, () => const ShoppingGroupsScreen()),
+  NavTabOption('documents', 'وثائقي', Icons.description_outlined,
+      Icons.description, () => const DocumentsScreen()),
+  NavTabOption('cars', 'سياراتي', Icons.directions_car_outlined,
+      Icons.directions_car, () => GenericListScreen(def: ModuleRegistry.cars)),
+  NavTabOption('workers', 'عمالتي', Icons.engineering_outlined,
+      Icons.engineering, () => GenericListScreen(def: ModuleRegistry.workers)),
+  NavTabOption('debts', 'الديون', Icons.account_balance_wallet_outlined,
+      Icons.account_balance_wallet,
+      () => GenericListScreen(def: ModuleRegistry.debts)),
+  NavTabOption('schedule', 'جدولي', Icons.calendar_view_week_outlined,
+      Icons.calendar_view_week,
+      () => GenericListScreen(def: ModuleRegistry.schedule)),
+  NavTabOption('links', 'روابطي', Icons.link_outlined, Icons.link,
+      () => const LinksGroupedScreen()),
+  NavTabOption('sizes', 'مقاساتي', Icons.straighten_outlined, Icons.straighten,
+      () => const SizeCategoriesScreen()),
+  NavTabOption('measurements', 'القياسات', Icons.monitor_heart_outlined,
+      Icons.monitor_heart,
+      () => GenericListScreen(def: ModuleRegistry.measurements)),
+];
+
+/// غلاف بعنوان للشاشات المصممة كتبويبات داخلية (بلا AppBar خاص بها).
+Widget _titled(String title, Widget body) => Directionality(
+      textDirection: TextDirection.rtl,
+      child: Scaffold(appBar: AppBar(title: Text(title)), body: body),
+    );
+
+NavTabOption? navOptionById(String id) {
+  for (final o in kNavCatalog) {
+    if (o.id == id) return o;
+  }
+  return null;
+}
+
+/// الشاشة الرئيسية — شريط تنقل سفلي: «الرئيسية» ثابتة + ٣ تبويبات
+/// يخصصها المستخدم من الإعدادات (الافتراضي: المواعيد · الأدوية · العائلة).
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -22,12 +90,46 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _index = 0;
 
-  late final List<Widget> _pages = [
-    const _HomeTab(),
-    const AppointmentsTabsScreen(),
-    GenericListScreen(def: ModuleRegistry.meds),
-    GenericListScreen(def: ModuleRegistry.family),
-  ];
+  // نعيد بناء الصفحات فقط عند تغيّر الاختيار (حفاظاً على حالة كل تبويب).
+  String _idsKey = '';
+  List<NavTabOption> _tabs = [];
+  List<Widget> _pages = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    NavPrefs.changed.addListener(_onPrefsChanged);
+    _syncPages();
+  }
+
+  @override
+  void dispose() {
+    NavPrefs.changed.removeListener(_onPrefsChanged);
+    super.dispose();
+  }
+
+  void _onPrefsChanged() {
+    if (mounted) setState(_syncPages);
+  }
+
+  void _syncPages() {
+    final ids = NavPrefs.current.join(',');
+    if (ids == _idsKey && _pages.isNotEmpty) return;
+    _idsKey = ids;
+    _tabs = NavPrefs.current
+        .map(navOptionById)
+        .whereType<NavTabOption>()
+        .take(3)
+        .toList();
+    if (_tabs.isEmpty) {
+      _tabs = NavPrefs.defaults
+          .map(navOptionById)
+          .whereType<NavTabOption>()
+          .toList();
+    }
+    _pages = [const _HomeTab(), for (final t in _tabs) t.builder()];
+    if (_index >= _pages.length) _index = 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,11 +140,16 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: cs.surface,
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'الرئيسية'),
-          NavigationDestination(icon: Icon(Icons.calendar_today_outlined), selectedIcon: Icon(Icons.calendar_today), label: 'المواعيد'),
-          NavigationDestination(icon: Icon(Icons.medication_outlined), selectedIcon: Icon(Icons.medication), label: 'الأدوية'),
-          NavigationDestination(icon: Icon(Icons.people_outline), selectedIcon: Icon(Icons.people), label: 'العائلة'),
+        destinations: [
+          const NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'الرئيسية'),
+          for (final t in _tabs)
+            NavigationDestination(
+                icon: Icon(t.icon),
+                selectedIcon: Icon(t.selectedIcon),
+                label: t.label),
         ],
       ),
     );
@@ -50,7 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 /// تبويب «الرئيسية» — شبكة الخدمات المجمّعة دلاليًا داخل سقالة هادئة تحمل
-/// الإعدادات وتسجيل الخروج (نفس مدخلَي HomeDashboard السابقة حفاظًا على السلوك).
+/// الإعدادات وتسجيل الخروج.
 class _HomeTab extends StatelessWidget {
   const _HomeTab();
 
@@ -102,13 +209,15 @@ class _HomeTab extends StatelessWidget {
             ],
           ),
           body: const ServicesGridScreen(),
-          // مدخل المحادثة اليدوي — قلب المنتج (كان بطاقة _chatEntry في
-          // HomeDashboard المحذوفة؛ بدونه لا تُفتح المحادثة إلا من الإشعارات).
+          // مدخل المحادثة — قلب المنتج. في اليمين (start مع RTL) وأعرض
+          // بنصّ أوضح (طلب المستخدم).
+          floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
           floatingActionButton: FloatingActionButton.extended(
             onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ChatPage())),
+            extendedPadding: const EdgeInsets.symmetric(horizontal: 22),
             icon: const Icon(Icons.chat_bubble_outline),
-            label: const Text('كلّم جاسر'),
+            label: const Text('تواصل مع سكرتيرك جاسر'),
           ),
         ),
       );

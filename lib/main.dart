@@ -16,6 +16,8 @@ import 'screens/worship/worship_screen.dart';
 import 'screens/worship/adhkar_reader_screen.dart';
 import 'data/worship_content.dart';
 import 'services/worship_prefs.dart';
+import 'services/nav_prefs.dart';
+import 'services/bio_lock.dart';
 import 'services/adhan_player.dart';
 import 'utils/prayer_times.dart';
 
@@ -216,9 +218,17 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   NotificationService.init();
   NotificationService.onSelectPayload = handleNotificationPayload;
+  // انتهت صلاحية التوكن (401 من السيرفر) → شاشة الدخول مباشرة
+  ApiClient.onUnauthorized = () {
+    rootNavigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (r) => false,
+    );
+  };
   ThemeController.instance.load();
   ChatPrefs.load();
   WorshipPrefs.ensureLoaded(); // تفضيلات العبادة (مواقيت/أذكار/ذكر/فائدة)
+  NavPrefs.load(); // تبويبات الشريط السفلي المخصصة
   runApp(const JasirApp());
 }
 
@@ -230,12 +240,37 @@ class JasirApp extends StatefulWidget {
 }
 
 class _JasirAppState extends State<JasirApp> with WidgetsBindingObserver {
+  // ── قفل الوجه/البصمة (اختياري): يُعرض كطبقة فوق كل الشاشات حتى لا
+  // يتجاوزه أي تنقّل (ومنه توجيه ضغطات الإشعارات) ──
+  bool _bioLocked = false;
+  bool _bioPrompting = false;
+  DateTime? _pausedAt;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     // أظهر/أخفِ شريط «إيقاف الأذان» تبعاً لحالة تشغيل الأذان.
     AdhanPlayer.instance.playing.addListener(_onAdhanPlayingChanged);
+    _initBioLock();
+  }
+
+  Future<void> _initBioLock() async {
+    await BioLock.load();
+    if (!BioLock.enabled) return;
+    // غير مسجّل دخول؟ شاشة الدخول نفسها حماية — لا داعي للقفل فوقها.
+    if (await ApiClient.instance.getToken() == null) return;
+    if (!mounted) return;
+    setState(() => _bioLocked = true);
+    _bioPrompt();
+  }
+
+  Future<void> _bioPrompt() async {
+    if (_bioPrompting) return;
+    _bioPrompting = true;
+    final ok = await BioLock.authenticate();
+    _bioPrompting = false;
+    if (mounted && ok) setState(() => _bioLocked = false);
   }
 
   @override
@@ -270,13 +305,29 @@ class _JasirAppState extends State<JasirApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       // سجّل لحظة مغادرة التطبيق (بداية عدّ الخمول)
+      if (state == AppLifecycleState.paused) _pausedAt = DateTime.now();
       ApiClient.instance.touch();
     } else if (state == AppLifecycleState.resumed) {
       _checkIdleTimeout();
+      _maybeRelock();
     }
   }
 
-  /// عند العودة للتطبيق: لو مرّت أكثر من 6 ساعات على آخر استخدام → تسجيل خروج.
+  /// إعادة القفل بعد غياب أكثر من دقيقتين بالخلفية (لو القفل مفعّل).
+  Future<void> _maybeRelock() async {
+    if (!BioLock.enabled || _bioLocked) return;
+    final away = _pausedAt == null
+        ? Duration.zero
+        : DateTime.now().difference(_pausedAt!);
+    _pausedAt = null;
+    if (away < const Duration(minutes: 2)) return;
+    if (await ApiClient.instance.getToken() == null) return;
+    if (!mounted) return;
+    setState(() => _bioLocked = true);
+    _bioPrompt();
+  }
+
+  /// عند العودة للتطبيق: لو انتهت مهلة الخمول (٩٠ يوماً) → تسجيل خروج.
   Future<void> _checkIdleTimeout() async {
     final hasToken = (await ApiClient.instance.getToken()) != null;
     if (!hasToken) return;
@@ -316,9 +367,72 @@ class _JasirAppState extends State<JasirApp> with WidgetsBindingObserver {
         builder: (ctx, child) => MediaQuery(
           data: MediaQuery.of(ctx)
               .copyWith(textScaler: TextScaler.linear(tc.fontScale)),
-          child: child ?? const SizedBox.shrink(),
+          child: Stack(
+            textDirection: TextDirection.rtl,
+            children: [
+              child ?? const SizedBox.shrink(),
+              // طبقة القفل فوق كل شيء (بألوان صريحة — لا تعتمد على Theme)
+              if (_bioLocked) _BioLockOverlay(onUnlock: _bioPrompt),
+            ],
+          ),
         ),
         home: const _StartupGate(),
+      ),
+    );
+  }
+}
+
+/// طبقة قفل الوجه/البصمة — تغطي التطبيق كاملاً (بما فيه أي شاشة مدفوعة
+/// من إشعار) حتى تنجح المصادقة. ألوان صريحة كي لا تعتمد على مكان Theme.
+class _BioLockOverlay extends StatelessWidget {
+  final VoidCallback onUnlock;
+  const _BioLockOverlay({required this.onUnlock});
+
+  @override
+  Widget build(BuildContext context) {
+    const emerald = Color(0xFF0E7C6C);
+    return Positioned.fill(
+      child: Directionality(
+        textDirection: TextDirection.rtl,
+        child: Material(
+          color: emerald,
+          child: SafeArea(
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.lock_outline, color: Colors.white, size: 56),
+                  const SizedBox(height: 16),
+                  const Text('جاسر مقفول',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  const Text('افتح بالوجه أو البصمة',
+                      style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  const SizedBox(height: 28),
+                  GestureDetector(
+                    onTap: onUnlock,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 36, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text('فتح',
+                          style: TextStyle(
+                              color: emerald,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -355,8 +469,8 @@ class _StartupGateState extends State<_StartupGate> with WidgetsBindingObserver 
         // لو الآن وقت أذكار الصباح/المساء — افتح صفحتها (ضمانة بلا ضغطة)
         maybeOpenAdhkar();
       } else {
-        // جلسة منتهية (خمول 6 ساعات) والتطبيق فُتح من إشعار: خزّن وجهة
-        // الإشعار بدل إسقاطها — OtpScreen يعيد تشغيلها بعد نجاح الدخول.
+        // جلسة منتهية والتطبيق فُتح من إشعار: خزّن وجهة الإشعار بدل
+        // إسقاطها — OtpScreen يعيد تشغيلها بعد نجاح الدخول.
         NotificationService.stashAppLaunch();
       }
     });

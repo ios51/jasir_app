@@ -1,6 +1,11 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import '../main.dart' show maybeOpenAdhkar;
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
+import 'home_screen.dart';
 import 'otp_screen.dart';
 
 /// شاشة إدخال رقم الجوال لبدء تسجيل الدخول (يُرسل رمز التحقق عبر واتساب).
@@ -28,6 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
       _error = null;
     });
     try {
+      // ملاحظة: AuthService.pendingAppleToken (إن وُجد) يُترك عمداً —
+      // هذا هو مسار «أول دخول بأبل → جوال مرة واحدة» والربط يتم مع الرمز.
+      // التوكن قصير العمر (~١٠ دقائق) والسيرفر يتحقق منه، ففشله لا يضر.
       await _authService.requestOtp(phone);
       if (!mounted) return;
       Navigator.of(context).push(
@@ -36,6 +44,62 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       debugPrint('OTP request error: $e');
       setState(() => _error = 'تعذر إرسال رمز التحقق، تأكد من الرقم وحاول مرة ثانية');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  /// الدخول بحساب أبل: إن كان مربوطاً يدخل مباشرة؛ وإلا نوجهه لإدخال
+  /// رقم جواله مرة واحدة (يُربط تلقائياً مع رمز التحقق) وبعدها أبل دائماً.
+  Future<void> _appleLogin() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final cred = await SignInWithApple.getAppleIDCredential(scopes: const []);
+      final token = cred.identityToken;
+      if (token == null) throw Exception('no_identity_token');
+      try {
+        await _authService.appleLogin(token);
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (r) => false);
+        // نفس ضمانات مسار OTP: استعادة توجيه إشعار ضائع + أذكار وقتها
+        final p = NotificationService.takePendingPayload();
+        if (p != null) NotificationService.onSelectPayload?.call(p);
+        maybeOpenAdhkar();
+        return;
+      } on AppleNotLinkedException {
+        AuthService.pendingAppleToken = token;
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          builder: (_) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              title: const Text('أول دخول بحساب أبل'),
+              content: const Text(
+                  'أدخل رقم جوالك المسجّل في جاسر مرة واحدة فقط — بيرتبط حسابك '
+                  'بأبل تلقائياً، ومن بعدها زر أبل يدخلك مباشرة بلا أي رمز.'),
+              actions: [
+                TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('تمام')),
+              ],
+            ),
+          ),
+        );
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (!mounted) return;
+      if (e.code != AuthorizationErrorCode.canceled) {
+        setState(() => _error = 'تعذر الدخول بحساب أبل، جرّب رقم الجوال');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'تعذر الدخول بحساب أبل، جرّب رقم الجوال');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -145,6 +209,26 @@ class _LoginScreenState extends State<LoginScreen> {
                     : const Text('ابدأ — أرسل رمز التحقق',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               ),
+              if (Platform.isIOS) ...[
+                const SizedBox(height: 18),
+                Row(children: [
+                  const Expanded(child: Divider()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('أو', style: TextStyle(color: muted)),
+                  ),
+                  const Expanded(child: Divider()),
+                ]),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 48,
+                  child: SignInWithAppleButton(
+                    text: 'الدخول بحساب أبل',
+                    onPressed: _loading ? () {} : _appleLogin,
+                    borderRadius: const BorderRadius.all(Radius.circular(10)),
+                  ),
+                ),
+              ],
             ],
           ),
         ),

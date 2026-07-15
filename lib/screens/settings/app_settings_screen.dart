@@ -1,9 +1,14 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import '../../theme/theme_controller.dart';
 import '../../services/settings_service.dart';
 import '../../services/api_client.dart';
+import '../../services/auth_service.dart';
+import '../../services/bio_lock.dart';
 import '../family/medical_files_screen.dart';
 import 'my_profile_screen.dart';
+import 'nav_tabs_screen.dart';
 
 /// إعدادات عامة: بياناتك (الكنية) + التنبيه الافتراضي، المظهر، وحجم الخط.
 class AppSettingsScreen extends StatefulWidget {
@@ -18,6 +23,7 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
   final _svc = SettingsService();
   int _defaultReminder = 60;
   bool _loaded = false;
+  bool _bioEnabled = false;
 
   @override
   void initState() {
@@ -31,7 +37,50 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
       final r = s['default_reminder'];
       if (r is int) _defaultReminder = r; else if (r != null) _defaultReminder = int.tryParse(r.toString()) ?? 60;
     } catch (_) {}
+    await BioLock.load();
+    _bioEnabled = BioLock.enabled;
     if (mounted) setState(() => _loaded = true);
+  }
+
+  Future<void> _toggleBio(bool v) async {
+    if (v) {
+      if (!await BioLock.deviceSupported()) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('جهازك لا يدعم الوجه/البصمة')));
+        }
+        return;
+      }
+      // تأكيد بالمصادقة نفسها قبل التفعيل (حتى لا ينقفل عليك بالغلط)
+      final ok = await BioLock.authenticate();
+      if (!ok) return;
+    }
+    await BioLock.setEnabled(v);
+    if (mounted) setState(() => _bioEnabled = v);
+  }
+
+  Future<void> _linkApple() async {
+    try {
+      final cred = await SignInWithApple.getAppleIDCredential(scopes: const []);
+      final t = cred.identityToken;
+      if (t == null) throw Exception('no_token');
+      await AuthService().linkApple(t);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('تم الربط ✅ — دخولك الجاي بزر أبل مباشرة')));
+      }
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) return;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تعذر الربط، حاول مرة ثانية')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تعذر الربط، حاول مرة ثانية')));
+      }
+    }
   }
 
   Future<void> _saveReminder(int v) async {
@@ -89,6 +138,33 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                     trailing: const Icon(Icons.chevron_left),
                     onTap: () => _openMyProfile(medical: true),
                   ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.dashboard_customize_outlined),
+                    title: const Text('تخصيص الشريط السفلي'),
+                    subtitle: const Text('اختر الخدمات الثلاث للوصول السريع'),
+                    trailing: const Icon(Icons.chevron_left),
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const NavTabsScreen())),
+                  ),
+                  const Divider(height: 1),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.fingerprint),
+                    title: const Text('قفل جاسر بالوجه/البصمة'),
+                    subtitle: const Text('طبقة حماية إضافية عند فتح التطبيق'),
+                    value: _bioEnabled,
+                    onChanged: _loaded ? _toggleBio : null,
+                  ),
+                  if (Platform.isIOS) ...[
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.apple),
+                      title: const Text('ربط حساب أبل'),
+                      subtitle: const Text('بعده تدخل بزر أبل بلا رمز تحقق'),
+                      trailing: const Icon(Icons.chevron_left),
+                      onTap: _linkApple,
+                    ),
+                  ],
                 ]),
               ),
               const SizedBox(height: 16),

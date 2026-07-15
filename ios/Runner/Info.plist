@@ -76,6 +76,8 @@
 	<string>يحتاج جاسر الكاميرا لتصوير الوثائق والمستندات وإرسالها.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>يحتاج جاسر الميكروفون لتسجيل الرسائل الصوتية في المحادثة.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>يستخدم جاسر بصمة الوجه لفتح التطبيق بسرعة وأمان (إن فعّلت القفل).</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>يستخدم جاسر موقعك لتحسين تذكيرات المواعيد والخدمات القريبة عند الحاجة.</string>
 </dict>

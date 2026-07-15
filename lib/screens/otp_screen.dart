@@ -31,7 +31,10 @@ class _OtpScreenState extends State<OtpScreen> {
       _error = null;
     });
     try {
-      await _authService.verifyOtp(widget.phone, code);
+      // لو جاء المستخدم من زر أبل (حساب غير مربوط) — نربطه في نفس الدخول
+      await _authService.verifyOtp(widget.phone, code,
+          appleIdentityToken: AuthService.pendingAppleToken);
+      AuthService.pendingAppleToken = null;
       PushService.init(); // سجل جهازك لإشعارات Push فور نجاح الدخول
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(

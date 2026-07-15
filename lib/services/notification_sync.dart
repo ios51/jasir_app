@@ -39,6 +39,7 @@ class NotificationSync {
             '🔔 تذكير موعد',
             '$who — ${e.title} الساعة ${e.eventTime}',
             dt.subtract(Duration(minutes: lead)),
+            payload: 'inbox', // التذكير معروض في المحادثة — الضغطة تفتحها
           ));
           final near = e.apptType == 'remote'
               ? 'فعّل جوالك — بيتصلون على ${e.personName ?? "المريض"}'
@@ -47,6 +48,7 @@ class NotificationSync {
             '📍 ${e.title} بعد ٣٠ دقيقة',
             near,
             dt.subtract(const Duration(minutes: 30)),
+            payload: 'inbox',
           ));
         }
       } catch (_) {}
@@ -62,6 +64,7 @@ class NotificationSync {
             '📋 مهمة اليوم',
             '${t.title} — موعد التسليم اليوم',
             dt,
+            payload: 'inbox',
           ));
         }
       } catch (_) {}
@@ -110,6 +113,7 @@ class NotificationSync {
               '📚 $title',
               where.isNotEmpty ? '$where — الساعة $start' : 'تبدأ الساعة $start',
               when.subtract(Duration(minutes: lead <= 0 ? 15 : lead)),
+              payload: 'inbox',
             ));
           }
         }

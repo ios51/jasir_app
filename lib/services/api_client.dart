@@ -22,8 +22,31 @@ class ApiClient {
         }
         handler.next(options);
       },
+      // انتهاء توكن السيرفر (٩٠ يوماً من الإصدار — لا يتجدد): أول 401 على
+      // مسار محمي → خروج نظيف لشاشة الدخول بدل تطبيق «شكله داخل» وكل
+      // طلباته تفشل بصمت.
+      onError: (e, handler) async {
+        final path = e.requestOptions.path;
+        if (e.response?.statusCode == 401 &&
+            !path.startsWith('/api/v1/auth/')) {
+          if (!_handling401) {
+            _handling401 = true;
+            try {
+              await logout();
+              onUnauthorized?.call();
+            } finally {
+              _handling401 = false;
+            }
+          }
+        }
+        handler.next(e);
+      },
     ));
   }
+
+  /// يُضبط من main.dart: يوجّه لشاشة الدخول عند انتهاء صلاحية التوكن.
+  static void Function()? onUnauthorized;
+  static bool _handling401 = false;
 
   static final ApiClient instance = ApiClient._internal();
 
@@ -33,8 +56,10 @@ class ApiClient {
   static const String _userIdKey = 'jasir_user_id';
   static const String _lastActiveKey = 'jasir_last_active';
 
-  /// مهلة الخمول: يُطلب تسجيل الدخول من جديد بعد 6 ساعات من عدم استخدام التطبيق.
-  static const Duration sessionIdleTimeout = Duration(hours: 6);
+  /// مهلة الخمول: ٩٠ يوماً (أقصى عمر لتوكن السيرفر JWT_EXPIRES='90d') —
+  /// كانت ٦ ساعات فكانت تطرد المستخدم يومياً وتُضيع توجيه الإشعارات.
+  /// مع الاستخدام اليومي تتجدد تلقائياً فلا يُطلب الرمز عملياً أبداً.
+  static const Duration sessionIdleTimeout = Duration(days: 90);
 
   Dio get dio => _dio;
 

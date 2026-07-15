@@ -245,10 +245,13 @@ class ModuleRegistry {
       FieldDef('name', 'الاسم', required: true),
       FieldDef('nationality', 'الجنسية'),
       FieldDef('jobTitle', 'المهنة'),
+      FieldDef('birthDate', 'تاريخ الميلاد', type: FieldType.date),
       FieldDef('iqamaNumber', 'رقم الإقامة', type: FieldType.number),
       FieldDef('iqamaExpiry', 'انتهاء الإقامة', type: FieldType.date),
       FieldDef('passportNumber', 'رقم الجواز'),
       FieldDef('passportExpiry', 'انتهاء الجواز', type: FieldType.date),
+      FieldDef('passportSource', 'مصدر الجواز', hint: 'مثال: الرياض'),
+      FieldDef('passportMrz', 'الرقم أسفل الجواز', hint: 'آخر سطر في الجواز — ٨ أو ١٠ رموز'),
       FieldDef('notes', 'ملاحظات', type: FieldType.multiline),
     ],
   );

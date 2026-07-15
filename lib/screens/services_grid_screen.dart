@@ -233,18 +233,22 @@ class _GroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final g = Theme.of(context).extension<JasirGroupColors>()!;
     final tt = Theme.of(context).textTheme;
-    final containerColor = switch (group.kind) {
-      _GroupKind.health => g.healthContainer,
-      _GroupKind.family => g.familyContainer,
-      _GroupKind.daily => g.dailyContainer,
-      _GroupKind.spiritual => g.spiritualContainer,
+    // إطار بلون المجموعة بدل الخلفية الملونة (طلب المستخدم) —
+    // السطح محايد والهوية اللونية في الحد.
+    final borderColor = switch (group.kind) {
+      _GroupKind.health => g.healthIcon,
+      _GroupKind.family => g.familyIcon,
+      _GroupKind.daily => g.dailyIcon,
+      _GroupKind.spiritual => g.spiritualIcon,
     };
 
     return Container(
       decoration: BoxDecoration(
-        color: containerColor,
+        color: cs.surface,
+        border: Border.all(color: borderColor.withValues(alpha: 0.55), width: 1.6),
         borderRadius: BorderRadius.circular(24),
       ),
       padding: const EdgeInsetsDirectional.fromSTEB(14, 16, 14, 16),
@@ -356,12 +360,15 @@ class _SpiritualGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final g = Theme.of(context).extension<JasirGroupColors>()!;
+    // إطار ذهبي بدل الخلفية الملونة (توحيداً مع بقية المجموعات) —
+    // البلاطات الداخلية تحتفظ بسطحها الداكن المميز فتبقى ألوانها مقروءة.
     return Container(
       decoration: BoxDecoration(
-        color: g.spiritualContainer,
+        color: cs.surface,
+        border: Border.all(color: g.spiritualIcon.withValues(alpha: 0.55), width: 1.6),
         borderRadius: BorderRadius.circular(24),
-        boxShadow: g.raisedShadow,
       ),
       padding: const EdgeInsetsDirectional.fromSTEB(16, 18, 16, 18),
       child: Column(
@@ -386,7 +393,7 @@ class _SpiritualGroupCard extends StatelessWidget {
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     height: 1.4,
-                    color: g.spiritualOnContainer,
+                    color: cs.onSurface, // على سطح محايد الآن (بعد الإطار)
                   ),
                 ),
               ],

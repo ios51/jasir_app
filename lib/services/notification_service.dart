@@ -14,7 +14,7 @@ class NotificationService {
   static void Function(String payload)? onSelectPayload;
 
   /// آخر حمولة إشعار (ضغطة/إقلاع) + وقتها — تُعاد بعد الدخول لو ضاعت
-  /// بسبب انتهاء الجلسة (خمول 6 ساعات → شاشة الدخول تبتلع التوجيه).
+  /// بسبب انتهاء الجلسة (شاشة الدخول تبتلع التوجيه).
   static String? _pendingPayload;
   static DateTime? _pendingAt;
   static void _stash(String p) { _pendingPayload = p; _pendingAt = DateTime.now(); }
