@@ -12,6 +12,10 @@ class ChatMessage {
   final String? mediaMimetype;
   final String? mediaFilename;
 
+  /// مسار ملف الوسائط المحفوظ على الجهاز — يبقى بعد إعادة تشغيل التطبيق
+  /// (بايتات الذاكرة لا تُخزَّن في السجل، الملف هو الدائم).
+  final String? mediaPath;
+
   ChatMessage({
     required this.text,
     required this.isMe,
@@ -19,23 +23,28 @@ class ChatMessage {
     this.mediaBytes,
     this.mediaMimetype,
     this.mediaFilename,
+    this.mediaPath,
   }) : time = time ?? DateTime.now();
 
-  bool get hasMedia => mediaBytes != null && mediaMimetype != null;
+  bool get hasMedia => (mediaBytes != null || mediaPath != null) && mediaMimetype != null;
   bool get isImage => mediaMimetype?.startsWith('image/') == true;
   bool get isPdf => mediaMimetype == 'application/pdf';
 
-  /// للحفظ على الجهاز — نحفظ النص والاتجاه والوقت فقط (بدون بايتات الوسائط
-  /// حتى لا تتضخّم الذاكرة)؛ رسالة الوسائط تُحفظ كسطر نصّي بوصفها.
+  /// للحفظ على الجهاز — النص والاتجاه والوقت، ومسار ملف الوسائط إن وُجد
+  /// (البايتات نفسها لا تدخل السجل حتى لا يتضخم).
   Map<String, dynamic> toJson() => {
         't': (hasMedia && text.isEmpty) ? (mediaFilename ?? '📎 مرفق') : text,
         'me': isMe,
         'ts': time.toIso8601String(),
+        if (mediaPath != null) 'mp': mediaPath,
+        if (mediaPath != null && mediaMimetype != null) 'mm': mediaMimetype,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
         text: (j['t'] as String?) ?? '',
         isMe: (j['me'] as bool?) ?? false,
         time: DateTime.tryParse((j['ts'] as String?) ?? ''),
+        mediaPath: j['mp'] as String?,
+        mediaMimetype: j['mm'] as String?,
       );
 }

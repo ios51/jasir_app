@@ -53,6 +53,49 @@ class SportsMatch {
       );
 }
 
+/// دوري (نتيجة بحث أو متابَع).
+class SportsLeague {
+  final String id;
+  final String name; // الاسم المعروض (معرّب إن توفر)
+
+  SportsLeague({required this.id, required this.name});
+
+  factory SportsLeague.fromSearch(Map<String, dynamic> j) {
+    final ar = (j['strLeagueAr'] ?? '').toString();
+    final en = (j['strLeague'] ?? '').toString();
+    return SportsLeague(
+      id: (j['idLeague'] ?? '').toString(),
+      name: ar.isNotEmpty ? ar : en,
+    );
+  }
+
+  factory SportsLeague.fromFollow(Map<String, dynamic> j) => SportsLeague(
+        id: (j['league_id'] ?? '').toString(),
+        name: (j['league_name'] ?? '').toString(),
+      );
+}
+
+/// مباراة جارية الآن.
+class LiveMatch {
+  final String home;
+  final String away;
+  final String homeScore;
+  final String awayScore;
+  final String progress; // الدقيقة/الشوط
+  final String league;
+
+  LiveMatch({required this.home, required this.away, required this.homeScore, required this.awayScore, required this.progress, required this.league});
+
+  factory LiveMatch.fromJson(Map<String, dynamic> j) => LiveMatch(
+        home: (j['strHomeTeam'] ?? '').toString(),
+        away: (j['strAwayTeam'] ?? '').toString(),
+        homeScore: (j['intHomeScore'] ?? '0').toString(),
+        awayScore: (j['intAwayScore'] ?? '0').toString(),
+        progress: (j['strProgress'] ?? '').toString(),
+        league: (j['strLeague'] ?? '').toString(),
+      );
+}
+
 /// صف في جدول الترتيب.
 class TableRow_ {
   final int rank;
@@ -78,6 +121,61 @@ class SportsService {
     return ((res.data['teams'] ?? []) as List)
         .map((e) => SportsTeam.fromFollow(Map<String, dynamic>.from(e)))
         .toList();
+  }
+
+  /// الفرق والدوريات المتابعة معاً (نداء واحد)
+  Future<(List<SportsTeam>, List<SportsLeague>)> followedAll() async {
+    final res = await _dio.get('/api/v1/football/follows');
+    final teams = ((res.data['teams'] ?? []) as List)
+        .map((e) => SportsTeam.fromFollow(Map<String, dynamic>.from(e)))
+        .toList();
+    final leagues = ((res.data['leagues'] ?? []) as List)
+        .map((e) => SportsLeague.fromFollow(Map<String, dynamic>.from(e)))
+        .toList();
+    return (teams, leagues);
+  }
+
+  Future<List<SportsLeague>> searchLeagues(String q) async {
+    final res = await _dio.get('/api/v1/football/leagues/search', queryParameters: {'q': q});
+    return ((res.data ?? []) as List)
+        .map((e) => SportsLeague.fromSearch(Map<String, dynamic>.from(e)))
+        .where((l) => l.id.isNotEmpty && l.name.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> followLeague(SportsLeague l) => _dio.post('/api/v1/football/leagues/follows',
+      data: {'leagueId': l.id, 'leagueName': l.name});
+
+  Future<void> unfollowLeague(String leagueId) =>
+      _dio.delete('/api/v1/football/leagues/follows/$leagueId');
+
+  Future<List<SportsMatch>> leagueLast(String leagueId) async {
+    final res = await _dio.get('/api/v1/football/league/$leagueId/last');
+    return ((res.data ?? []) as List).map((e) => SportsMatch.fromJson(Map<String, dynamic>.from(e))).toList();
+  }
+
+  Future<List<SportsMatch>> leagueNext(String leagueId) async {
+    final res = await _dio.get('/api/v1/football/league/$leagueId/next');
+    return ((res.data ?? []) as List).map((e) => SportsMatch.fromJson(Map<String, dynamic>.from(e))).toList();
+  }
+
+  /// إعداد تنبيهات الأهداف: all | important6 | important10 | off
+  Future<String> alertsMode() async {
+    try {
+      final res = await _dio.get('/api/v1/football/alerts');
+      return (res.data['mode'] ?? 'all').toString();
+    } catch (_) {
+      return 'all';
+    }
+  }
+
+  Future<void> setAlertsMode(String mode) =>
+      _dio.put('/api/v1/football/alerts', data: {'mode': mode});
+
+  /// المباريات الجارية الآن لفرقي المتابعة
+  Future<List<LiveMatch>> live() async {
+    final res = await _dio.get('/api/v1/football/live');
+    return ((res.data ?? []) as List).map((e) => LiveMatch.fromJson(Map<String, dynamic>.from(e))).toList();
   }
 
   Future<List<SportsTeam>> search(String q) async {

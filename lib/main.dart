@@ -16,6 +16,7 @@ import 'screens/worship/worship_screen.dart';
 import 'screens/worship/adhkar_reader_screen.dart';
 import 'screens/support/support_screen.dart';
 import 'screens/support/admin_support_screen.dart';
+import 'screens/sports/sports_screen.dart';
 import 'data/worship_content.dart';
 import 'services/worship_prefs.dart';
 import 'services/nav_prefs.dart';
@@ -87,6 +88,9 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
     final name = payload.split('|').last;
     nav.push(MaterialPageRoute(builder: (_) => const WorshipScreen()));
     maybePlayAdhan(prayerName: name);
+  } else if (payload == 'sports') {
+    // هدف/نتيجة لفريق متابَع → شاشة الرياضة (فيها قسم «مباشر الآن»)
+    nav.push(MaterialPageRoute(builder: (_) => const SportsScreen()));
   } else if (payload == 'support') {
     // رد من الإدارة أو إعلان عام → محادثة «تواصل معنا»
     nav.push(MaterialPageRoute(builder: (_) => const SupportScreen()));

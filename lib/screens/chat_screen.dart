@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,7 @@ import '../models/chat_message.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_client.dart';
 import '../services/chat_service.dart';
+import '../services/chat_media_store.dart';
 import '../services/chat_store.dart';
 import '../services/chat_prefs.dart';
 import '../services/settings_service.dart';
@@ -151,20 +153,35 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       final items = (res.data is List) ? res.data as List : [];
       if (items.isEmpty || !mounted) return;
       final ids = <int>[];
-      setState(() {
-        for (final it in items) {
-          final m = Map<String, dynamic>.from(it as Map);
-          final title = (m['title'] ?? '').toString();
-          final body = (m['body'] ?? '').toString();
-          if (body.isEmpty && title.isEmpty) continue;
-          _messages.add(ChatMessage(
-            text: title.isNotEmpty ? '$title\n\n$body' : body,
-            isMe: false,
-          ));
-          final id = int.tryParse((m['id'] ?? '').toString());
-          if (id != null) ids.add(id);
+      final newMsgs = <ChatMessage>[];
+      // نجهز الرسائل (فك الصور + حفظها ملفات دائمة) قبل setState
+      for (final it in items) {
+        final m = Map<String, dynamic>.from(it as Map);
+        final title = (m['title'] ?? '').toString();
+        final body = (m['body'] ?? '').toString();
+        if (body.isEmpty && title.isEmpty) continue;
+        // بث بصورة: تُحفظ ملفاً على الجهاز فتبقى بعد إعادة تشغيل التطبيق
+        Uint8List? imgBytes;
+        String? imgPath;
+        final img = (m['image'] ?? '').toString();
+        if (img.isNotEmpty && img != 'null') {
+          try {
+            imgBytes = base64Decode(img);
+            imgPath = await ChatMediaStore.save(imgBytes);
+          } catch (_) {/* صورة تالفة → نص فقط */}
         }
-      });
+        newMsgs.add(ChatMessage(
+          text: title.isNotEmpty ? '$title\n\n$body' : body,
+          isMe: false,
+          mediaBytes: imgBytes,
+          mediaMimetype: imgBytes != null ? 'image/jpeg' : null,
+          mediaPath: imgPath,
+        ));
+        final id = int.tryParse((m['id'] ?? '').toString());
+        if (id != null) ids.add(id);
+      }
+      if (newMsgs.isEmpty || !mounted) return;
+      setState(() => _messages.addAll(newMsgs));
       _persist();
       _scrollToBottom();
       if (ids.isNotEmpty) {
@@ -338,7 +355,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _scrollToBottom();
     try {
       final replies = await _service.sendMessage(text);
-      _appendReplies(replies);
+      await _appendReplies(replies);
     } catch (e) {
       _appendError('تعذر إرسال الرسالة، تحقق من الاتصال وحاول مرة ثانية');
     } finally {
@@ -519,7 +536,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     try {
       final replies = await _service.sendMedia(bytes: bytes, mimetype: mimetype);
       debugPrint('[chat] media replies: $replies');
-      _appendReplies(replies);
+      await _appendReplies(replies);
     } catch (e) {
       debugPrint('[chat] media error: $e');
       _appendError('تعذر إرسال الملف، تحقق من الاتصال وحاول مرة ثانية');
@@ -529,33 +546,48 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
   }
 
-  void _appendReplies(List<ChatReply> replies) {
+  Future<void> _appendReplies(List<ChatReply> replies) async {
     if (!mounted) return;
-    setState(() {
-      if (replies.isEmpty) {
-        _messages.add(ChatMessage(text: '...', isMe: false));
-      } else {
-        for (final r in replies) {
-          if (r.isMedia) {
-            _messages.add(ChatMessage(
-              text: r.caption ?? '',
-              isMe: false,
-              mediaBytes: r.bytes,
-              mediaMimetype: r.mimetype,
-              mediaFilename: r.filename,
-            ));
-          } else {
-            _messages.add(ChatMessage(text: r.text ?? '', isMe: false));
+    // صور جاسر تُحفظ ملفات دائمة (قرار المستخدم: كل الصور تبقى بعد إعادة التشغيل)
+    final newMsgs = <ChatMessage>[];
+    if (replies.isEmpty) {
+      newMsgs.add(ChatMessage(text: '...', isMe: false));
+    } else {
+      for (final r in replies) {
+        if (r.isMedia) {
+          String? path;
+          if (r.bytes != null && (r.mimetype ?? '').startsWith('image/')) {
+            path = await ChatMediaStore.save(r.bytes!,
+                ext: (r.mimetype == 'image/png') ? 'png' : 'jpg');
           }
+          newMsgs.add(ChatMessage(
+            text: r.caption ?? '',
+            isMe: false,
+            mediaBytes: r.bytes,
+            mediaMimetype: r.mimetype,
+            mediaFilename: r.filename,
+            mediaPath: path,
+          ));
+        } else {
+          newMsgs.add(ChatMessage(text: r.text ?? '', isMe: false));
         }
       }
-    });
+    }
+    if (!mounted) return;
+    setState(() => _messages.addAll(newMsgs));
     _persist();
   }
 
   Future<void> _openMedia(ChatMessage m) async {
     if (!m.hasMedia) return;
-    final b64 = base64Encode(m.mediaBytes!);
+    Uint8List? bytes = m.mediaBytes;
+    if (bytes == null && m.mediaPath != null) {
+      try {
+        bytes = await File(m.mediaPath!).readAsBytes();
+      } catch (_) {}
+    }
+    if (bytes == null) return;
+    final b64 = base64Encode(bytes);
     final uri = Uri.parse('data:${m.mediaMimetype};base64,$b64');
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -634,11 +666,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
   Widget _mediaContent(ChatMessage m) {
     if (m.isImage) {
+      // من الذاكرة إن توفرت، وإلا من الملف المحفوظ (بعد إعادة تشغيل التطبيق)
+      final Widget img = m.mediaBytes != null
+          ? Image.memory(m.mediaBytes!, fit: BoxFit.cover)
+          : Image.file(
+              File(m.mediaPath!),
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('🖼 صورة لم تعد متاحة'),
+              ),
+            );
       return ClipRRect(
         borderRadius: BorderRadius.circular(10),
         child: GestureDetector(
           onTap: () => _openMedia(m),
-          child: Image.memory(m.mediaBytes!, fit: BoxFit.cover),
+          child: img,
         ),
       );
     }
