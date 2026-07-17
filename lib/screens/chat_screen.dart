@@ -425,7 +425,61 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   // ── رفع صورة أو PDF ───────────────────────────────────────────────
-  Future<void> _pickFile() async {
+  /// زر المرفق يعرض خيارين: الصور (معرض الجهاز مباشرة) أو الملفات (PDF).
+  /// كان يفتح «الملفات» فقط — والمستخدم غالباً صوره في تطبيق الصور.
+  Future<void> _pickAttachment() async {
+    FocusManager.instance.primaryFocus?.unfocus(); // أنزل الكيبورد قبل فتح المنتقي
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.photo_library_outlined, color: Theme.of(ctx).colorScheme.primary),
+              title: const Text('الصور', textAlign: TextAlign.right),
+              subtitle: const Text('من معرض صور الجهاز', textAlign: TextAlign.right),
+              onTap: () => Navigator.pop(ctx, 'photos'),
+            ),
+            ListTile(
+              leading: Icon(Icons.description_outlined, color: Theme.of(ctx).colorScheme.primary),
+              title: const Text('ملف PDF', textAlign: TextAlign.right),
+              subtitle: const Text('من تطبيق الملفات', textAlign: TextAlign.right),
+              onTap: () => Navigator.pop(ctx, 'file'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (choice == 'photos') {
+      await _pickFromGallery();
+    } else if (choice == 'file') {
+      await _pickPdf();
+    }
+  }
+
+  /// معرض الصور: FileType.image يفتح منتقي الصور الأصلي (PHPicker على iOS —
+  /// بلا إذن مكتبة الصور لأنه يعمل خارج التطبيق).
+  Future<void> _pickFromGallery() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.single;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذرت قراءة الصورة')));
+        return;
+      }
+      final ext = (file.extension ?? '').toLowerCase();
+      final mimetype = ext == 'png' ? 'image/png' : 'image/jpeg';
+      await _sendMediaBytes(bytes, mimetype, label: '🖼 ${file.name}');
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر اختيار الصورة')));
+    }
+  }
+
+  Future<void> _pickPdf() async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -639,8 +693,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             valueListenable: ChatPrefs.background,
             builder: (context, bgId, _) => Container(
               decoration: ChatPrefs.decoration(bgId),
-              child: ListView.builder(
+              // إصلاح تعليق الكيبورد: السحب داخل المحادثة يُنزل الكيبورد،
+              // واللمس على أي مكان خارج حقل الكتابة يُنزله أيضاً.
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                child: ListView.builder(
             controller: _scrollController,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(vertical: 12),
             itemCount: _messages.length + (_sending ? 1 : 0),
             itemBuilder: (context, i) {
@@ -656,6 +716,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               return _bubble(_messages[i]);
             },
           ),
+              ),
             ),
           ),
         ),
@@ -693,7 +754,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 IconButton(
-                  onPressed: _sending ? null : _pickFile,
+                  onPressed: _sending ? null : _pickAttachment,
                   icon: const Icon(Icons.attach_file),
                   tooltip: 'إرفاق صورة أو PDF',
                 ),

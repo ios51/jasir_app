@@ -10,7 +10,11 @@ import 'sizes/size_categories_screen.dart';
 import 'shopping/shopping_groups_screen.dart';
 import 'documents/documents_screen.dart';
 import 'links/links_grouped_screen.dart';
+import 'sports/sports_screen.dart';
+import 'support/admin_support_screen.dart';
+import 'support/support_screen.dart';
 import 'worship/worship_screen.dart';
+import '../services/support_service.dart';
 import '../theme/jasir_theme.dart';
 
 /// شاشة الخدمات — إعادة تصميم «Calm Bento» وفق design-system/MASTER.md:
@@ -40,6 +44,17 @@ class _ServicesGridScreenState extends State<ServicesGridScreen>
     duration: Duration(milliseconds: _sectionMs + _staggerMs * (_sections - 1)),
   );
   bool _entranceStarted = false;
+
+  /// «لوحة الدعم» تظهر للمالك فقط — تُفحص مرة عند الفتح (فشل الشبكة = مخفية).
+  bool _isAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SupportService().isAdmin().then((v) {
+      if (mounted && v) setState(() => _isAdmin = true);
+    });
+  }
 
   // ── المجموعات: نفس الوجهات الأصلية للبلاطات الأربع عشرة بالضبط ──
   List<_ServiceGroup> get _groups => <_ServiceGroup>[
@@ -83,6 +98,13 @@ class _ServicesGridScreenState extends State<ServicesGridScreen>
               () => GenericListScreen(def: ModuleRegistry.schedule)),
           _ServiceTile('links', 'روابطي', 'مجلدات + تصنيف تلقائي',
               Icons.link_outlined, () => const LinksGroupedScreen()),
+          _ServiceTile('sports', 'الرياضة', 'نتائج وترتيب فرقك المفضلة',
+              Icons.sports_soccer_outlined, () => const SportsScreen()),
+          _ServiceTile('support', 'تواصل معنا', 'اقتراحاتك وشكاويك تصلنا هنا',
+              Icons.forum_outlined, () => const SupportScreen()),
+          if (_isAdmin)
+            _ServiceTile('support_admin', 'لوحة الدعم', 'رسائل المستخدمين والإعلانات',
+                Icons.admin_panel_settings_outlined, () => const AdminSupportScreen()),
         ]),
         // روحانيات — رسالة الصباح · أذكار المؤمن (خاتمة وجدانية)
         _ServiceGroup('روحانيات', _GroupKind.spiritual, <_ServiceTile>[

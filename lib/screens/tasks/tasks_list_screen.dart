@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/task.dart';
 import '../../services/tasks_service.dart';
+import 'notes_tab.dart';
 import 'task_detail_screen.dart';
 import 'task_form_screen.dart';
 
@@ -19,7 +20,11 @@ class _TasksListScreenState extends State<TasksListScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    // زرا المهام (إضافة/انضمام) يختفيان في تبويب الملاحظات — لها حقلها الخاص
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _reload();
   }
 
@@ -114,7 +119,7 @@ class _TasksListScreenState extends State<TasksListScreen> with SingleTickerProv
         children: [
           TabBar(
             controller: _tabController,
-            tabs: const [Tab(text: 'مهامي'), Tab(text: 'مشتركة معي')],
+            tabs: const [Tab(text: 'مهامي'), Tab(text: 'مشتركة معي'), Tab(text: 'ملاحظات')],
           ),
           Expanded(
             child: RefreshIndicator(
@@ -131,7 +136,7 @@ class _TasksListScreenState extends State<TasksListScreen> with SingleTickerProv
                   final data = snapshot.data ?? TasksResult([], []);
                   return TabBarView(
                     controller: _tabController,
-                    children: [_buildList(data.owned), _buildList(data.shared)],
+                    children: [_buildList(data.owned), _buildList(data.shared), const NotesTab()],
                   );
                 },
               ),
@@ -139,23 +144,25 @@ class _TasksListScreenState extends State<TasksListScreen> with SingleTickerProv
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.small(
-            heroTag: 'joinTask',
-            onPressed: _joinByCode,
-            tooltip: 'الانضمام بكود',
-            child: const Icon(Icons.vpn_key_outlined),
-          ),
-          const SizedBox(height: 10),
-          FloatingActionButton(
-            heroTag: 'addTask',
-            onPressed: _openCreate,
-            child: const Icon(Icons.add),
-          ),
-        ],
-      ),
+      floatingActionButton: _tabController.index == 2
+          ? null // تبويب الملاحظات: الإضافة من الحقل العلوي — لا حاجة لأزرار
+          : Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: 'joinTask',
+                  onPressed: _joinByCode,
+                  tooltip: 'الانضمام بكود',
+                  child: const Icon(Icons.vpn_key_outlined),
+                ),
+                const SizedBox(height: 10),
+                FloatingActionButton(
+                  heroTag: 'addTask',
+                  onPressed: _openCreate,
+                  child: const Icon(Icons.add),
+                ),
+              ],
+            ),
     );
   }
 }

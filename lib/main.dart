@@ -14,6 +14,8 @@ import 'screens/chat_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'screens/worship/worship_screen.dart';
 import 'screens/worship/adhkar_reader_screen.dart';
+import 'screens/support/support_screen.dart';
+import 'screens/support/admin_support_screen.dart';
 import 'data/worship_content.dart';
 import 'services/worship_prefs.dart';
 import 'services/nav_prefs.dart';
@@ -85,6 +87,12 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
     final name = payload.split('|').last;
     nav.push(MaterialPageRoute(builder: (_) => const WorshipScreen()));
     maybePlayAdhan(prayerName: name);
+  } else if (payload == 'support') {
+    // رد من الإدارة أو إعلان عام → محادثة «تواصل معنا»
+    nav.push(MaterialPageRoute(builder: (_) => const SupportScreen()));
+  } else if (payload == 'support_admin') {
+    // رسالة مستخدم جديدة → «لوحة الدعم» (تظهر للمالك فقط أصلاً)
+    nav.push(MaterialPageRoute(builder: (_) => const AdminSupportScreen()));
   }
 }
 
