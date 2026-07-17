@@ -488,8 +488,8 @@ class _TableTabState extends State<_TableTab> with AutomaticKeepAliveClientMixin
   @override
   void initState() {
     super.initState();
-    final leagueId = widget.team.league.contains('|') ? widget.team.league.split('|').last : widget.team.leagueId;
-    if (leagueId.isNotEmpty) _future = SportsService().leagueTable(leagueId);
+    // من معرف الفريق دائماً — السيرفر يحل الدوري بنفسه (يصلح الفرق القديمة)
+    _future = SportsService().teamTable(widget.team.id);
   }
 
   @override

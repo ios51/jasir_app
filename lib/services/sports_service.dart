@@ -106,6 +106,16 @@ class SportsService {
     return ((res.data ?? []) as List).map((e) => SportsMatch.fromJson(Map<String, dynamic>.from(e))).toList();
   }
 
+  /// ترتيب دوري الفريق من معرف الفريق مباشرة — يعمل حتى لو ما خُزّن
+  /// معرف الدوري وقت المتابعة.
+  Future<(String, List<TableRow_>)> teamTable(String teamId) async {
+    final res = await _dio.get('/api/v1/football/team/$teamId/table');
+    final rows = ((res.data['table'] ?? []) as List)
+        .map((e) => TableRow_.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+    return ((res.data['season'] ?? '').toString(), rows);
+  }
+
   Future<(String, List<TableRow_>)> leagueTable(String leagueId) async {
     final res = await _dio.get('/api/v1/football/table/$leagueId');
     final rows = ((res.data['table'] ?? []) as List)
