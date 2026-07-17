@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../services/sports_service.dart';
 import '../../theme/jasir_theme.dart';
@@ -68,7 +67,12 @@ class _SportsScreenState extends State<SportsScreen> {
     try {
       await _service.unfollow(t.id);
       _reload();
-    } catch (_) {}
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('تعذر الحذف — تحقق من الاتصال')));
+      }
+    }
   }
 
   @override
@@ -147,6 +151,45 @@ class _SportsScreenState extends State<SportsScreen> {
     final g = Theme.of(context).extension<JasirGroupColors>()!;
     // league مخزنة بصيغة "اسم الدوري|معرفه"
     final leagueName = t.league.split('|').first;
+    // حذف بطريقتين: سحب البطاقة، أو زر النجمة — كلاهما بتأكيد
+    return Dismissible(
+      key: ValueKey('team_${t.id}'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        final sure = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('إلغاء متابعة ${t.name}؟'),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+              FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('إلغاء المتابعة')),
+            ],
+          ),
+        );
+        if (sure != true) return false;
+        try {
+          await _service.unfollow(t.id);
+          return true;
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(const SnackBar(content: Text('تعذر الحذف — تحقق من الاتصال')));
+          }
+          return false;
+        }
+      },
+      onDismissed: (_) => setState(() => _teams.removeWhere((x) => x.id == t.id)),
+      background: Container(
+        alignment: AlignmentDirectional.centerEnd,
+        padding: const EdgeInsetsDirectional.only(end: 20),
+        decoration: BoxDecoration(color: cs.error, borderRadius: BorderRadius.circular(18)),
+        child: Icon(Icons.delete_outline, color: cs.onError),
+      ),
+      child: _teamCardBody(t, cs, g, leagueName),
+    );
+  }
+
+  Widget _teamCardBody(SportsTeam t, ColorScheme cs, JasirGroupColors g, String leagueName) {
     return Container(
       decoration: BoxDecoration(
         color: g.tileSurface,
@@ -199,7 +242,6 @@ class _SportsScreenState extends State<SportsScreen> {
 class _TeamSearchDelegate extends SearchDelegate<bool?> {
   final SportsService service;
   final Set<String> followedIds;
-  Timer? _debounce;
 
   _TeamSearchDelegate(this.service, this.followedIds)
       : super(searchFieldLabel: 'اسم الفريق (مثال: الهلال، Real Madrid)');
@@ -284,11 +326,6 @@ class _TeamSearchDelegate extends SearchDelegate<bool?> {
     );
   }
 
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    super.dispose();
-  }
 }
 
 /// تفاصيل فريق: ٣ تبويبات كسولة — النتائج/القادمة/الترتيب.

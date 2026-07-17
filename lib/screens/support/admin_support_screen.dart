@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../../services/support_service.dart';
 import '../../theme/jasir_theme.dart';
@@ -42,88 +45,166 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
     }
   }
 
+  /// بث للجميع: يختار النوع (إعلان / رسالة من الإدارة) ويكتب النص ويرفق
+  /// صورة اختيارياً — ثم «معاينة» تعرض الشكل النهائي، ومنها «نشر».
   Future<void> _announce() async {
     final ctrl = TextEditingController();
-    final cs = Theme.of(context).colorScheme;
+    String kind = 'announcement';
+    Uint8List? imageBytes;
     final send = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('إعلان للجميع', style: Theme.of(ctx).textTheme.titleMedium),
-              const SizedBox(height: 10),
-              TextField(
-                controller: ctrl,
-                autofocus: true,
-                minLines: 2,
-                maxLines: 6,
-                textAlign: TextAlign.right,
-                decoration: const InputDecoration(hintText: 'نص الإعلان…'),
-              ),
-              const SizedBox(height: 12),
-              // معاينة بالشكل الذي سيصل للمستخدمين
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: cs.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: cs.tertiary.withOpacity(0.4)),
+        child: StatefulBuilder(
+          builder: (ctx, setSheet) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('بث للجميع', style: Theme.of(ctx).textTheme.titleMedium, textAlign: TextAlign.center),
+                const SizedBox(height: 10),
+                // النوع أولاً — ثم الكتابة تحته (قرار المستخدم)
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: 'announcement', label: Text('إعلان'), icon: Icon(Icons.campaign_outlined)),
+                    ButtonSegment(value: 'admin_broadcast', label: Text('رسالة من الإدارة'), icon: Icon(Icons.mark_email_read_outlined)),
+                  ],
+                  selected: {kind},
+                  onSelectionChanged: (s) => setSheet(() => kind = s.first),
                 ),
-                child: Row(
+                const SizedBox(height: 10),
+                TextField(
+                  controller: ctrl,
+                  minLines: 3,
+                  maxLines: 8,
+                  textAlign: TextAlign.right,
+                  decoration: InputDecoration(
+                      hintText: kind == 'announcement' ? 'نص الإعلان…' : 'نص الرسالة…'),
+                ),
+                const SizedBox(height: 10),
+                Row(
                   children: [
-                    Icon(Icons.campaign_outlined, size: 18, color: cs.onTertiaryContainer),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: ctrl,
-                        builder: (_, v, __) => Text(
-                          v.text.isEmpty ? 'معاينة الإعلان…' : v.text,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: cs.onTertiaryContainer),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        final result = await FilePicker.platform
+                            .pickFiles(type: FileType.image, withData: true);
+                        final bytes = result?.files.single.bytes;
+                        if (bytes == null) return;
+                        if (bytes.length > 1400 * 1024) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                              const SnackBar(content: Text('الصورة كبيرة — الحد 1.4MB')));
+                          return;
+                        }
+                        setSheet(() => imageBytes = bytes);
+                      },
+                      icon: const Icon(Icons.image_outlined),
+                      label: Text(imageBytes == null ? 'إرفاق صورة' : 'تغيير الصورة'),
+                    ),
+                    if (imageBytes != null) ...[
+                      const SizedBox(width: 8),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        tooltip: 'إزالة الصورة',
+                        onPressed: () => setSheet(() => imageBytes = null),
+                      ),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.memory(imageBytes!, height: 44, fit: BoxFit.cover),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () => Navigator.pop(ctx, true),
-                icon: const Icon(Icons.campaign_outlined),
-                label: const Text('نشر'),
-              ),
-            ],
+                const SizedBox(height: 12),
+                // المعاينة خطوة بعد الانتهاء — ليست حية أثناء الكتابة
+                FilledButton.icon(
+                  onPressed: () {
+                    if (ctrl.text.trim().isEmpty) return;
+                    Navigator.pop(ctx, true);
+                  },
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('معاينة'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
     final text = ctrl.text.trim();
-    if (send != true || text.isEmpty) return;
-    if (!mounted) return;
+    ctrl.dispose();
+    if (send != true || text.isEmpty || !mounted) return;
+    await _previewAndPublish(text, kind, imageBytes);
+  }
+
+  /// شاشة المعاينة النهائية: الشكل كما سيظهر للمستخدمين + زر النشر.
+  Future<void> _previewAndPublish(String text, String kind, Uint8List? imageBytes) async {
+    final cs = Theme.of(context).colorScheme;
+    final g = Theme.of(context).extension<JasirGroupColors>()!;
+    final isAnn = kind == 'announcement';
     final sure = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('تأكيد النشر'),
-        content: const Text('سيصل هذا الإعلان لكل المستخدمين. متأكد؟'),
+        title: const Text('معاينة قبل النشر'),
+        content: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isAnn ? cs.tertiaryContainer : cs.secondaryContainer,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: (isAnn ? cs.tertiary : cs.secondary).withOpacity(0.4)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(isAnn ? Icons.campaign_outlined : Icons.mark_email_read_outlined,
+                        size: 20, color: isAnn ? g.warning : cs.secondary),
+                    const SizedBox(width: 6),
+                    Text(isAnn ? 'إعلان' : 'رسالة من الإدارة',
+                        style: Theme.of(ctx).textTheme.titleMedium),
+                  ],
+                ),
+                if (imageBytes != null) ...[
+                  const SizedBox(height: 10),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.memory(imageBytes, fit: BoxFit.cover),
+                  ),
+                ],
+                const SizedBox(height: 6),
+                Text(text,
+                    style: TextStyle(color: isAnn ? cs.onTertiaryContainer : cs.onSecondaryContainer)),
+              ],
+            ),
+          ),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('نشر')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('رجوع')),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.send),
+            label: const Text('نشر للجميع'),
+          ),
         ],
       ),
     );
-    if (sure != true) return;
+    if (sure != true || !mounted) return;
     try {
-      final pushed = await _service.announce(text);
+      final pushed = await _service.announce(
+        text,
+        kind: kind,
+        imageB64: imageBytes != null ? base64Encode(imageBytes) : null,
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('نُشر الإعلان ✅ (وصل إشعار لـ$pushed جهاز)')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${isAnn ? 'نُشر الإعلان' : 'أُرسلت الرسالة'} ✅ (وصل إشعار لـ$pushed جهاز)')));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('تعذر النشر — تحقق من الاتصال')));
@@ -138,7 +219,7 @@ class _AdminSupportScreenState extends State<AdminSupportScreen> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _announce,
         icon: const Icon(Icons.campaign_outlined),
-        label: const Text('إعلان للجميع'),
+        label: const Text('بث للجميع'),
       ),
       body: _loading
           ? const Center(child: JasirSpinner())
@@ -368,6 +449,12 @@ class _AdminThreadScreenState extends State<AdminThreadScreen> {
                                           .textTheme
                                           .labelSmall
                                           ?.copyWith(color: cs.onSurfaceVariant)),
+                                if (m.subject.isNotEmpty)
+                                  Text(m.subject,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: mine ? cs.onPrimaryContainer : cs.onSurface,
+                                      )),
                                 Text(m.text,
                                     style: TextStyle(color: mine ? cs.onPrimaryContainer : cs.onSurface)),
                               ],

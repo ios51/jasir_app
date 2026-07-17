@@ -1,16 +1,20 @@
 import 'package:dio/dio.dart';
 import 'api_client.dart';
 
-/// رسالة تواصل: من المستخدم (اقتراح/شكوى/استفسار) أو من الإدارة (رد/إعلان).
+/// رسالة تواصل: من المستخدم (اقتراح/شكوى/استفسار بموضوع ومضمون)
+/// أو من الإدارة (رد/إعلان/رسالة إدارة — مع صورة اختيارية للبث).
 class SupportMessage {
   final int id;
   final String sender; // 'user' | 'admin'
-  final String kind; // suggestion|complaint|inquiry|reply|announcement
+  final String kind; // suggestion|complaint|inquiry|reply|announcement|admin_broadcast
+  final String subject;
   final String text;
+  final String image; // base64 (فارغة إن لا صورة)
   final String createdAt;
 
-  SupportMessage({required this.id, required this.sender, required this.kind, required this.text, required this.createdAt});
+  SupportMessage({required this.id, required this.sender, required this.kind, required this.subject, required this.text, required this.image, required this.createdAt});
 
+  bool get isBroadcast => kind == 'announcement' || kind == 'admin_broadcast';
   bool get isAnnouncement => kind == 'announcement';
   bool get fromAdmin => sender == 'admin';
 
@@ -18,9 +22,21 @@ class SupportMessage {
         id: (j['id'] as num).toInt(),
         sender: (j['sender'] ?? 'user').toString(),
         kind: (j['kind'] ?? 'inquiry').toString(),
+        subject: (j['subject'] ?? '').toString(),
         text: (j['text'] ?? '').toString(),
+        image: (j['image'] ?? '').toString(),
         createdAt: (j['created_at'] ?? '').toString(),
       );
+}
+
+/// نتيجة محاولة الإرسال: نجاح أو متبقي على السماح (حد الـ٢٤ ساعة).
+class SendOutcome {
+  final bool ok;
+  final int remainingMinutes;
+  SendOutcome.ok()
+      : ok = true,
+        remainingMinutes = 0;
+  SendOutcome.cooldown(this.remainingMinutes) : ok = false;
 }
 
 /// محادثة مستخدم في لوحة الدعم (للمالك).
@@ -60,8 +76,18 @@ class SupportService {
     return (res.data as List).map((e) => SupportMessage.fromJson(Map<String, dynamic>.from(e))).toList();
   }
 
-  Future<void> send(String text, {String kind = 'inquiry'}) =>
-      _dio.post('/api/v1/support/messages', data: {'text': text, 'kind': kind});
+  Future<SendOutcome> send({required String subject, required String text, String kind = 'inquiry'}) async {
+    try {
+      await _dio.post('/api/v1/support/messages',
+          data: {'subject': subject, 'text': text, 'kind': kind});
+      return SendOutcome.ok();
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 429 && e.response?.data is Map && e.response?.data['error'] == 'cooldown') {
+        return SendOutcome.cooldown(((e.response?.data['remainingMinutes'] ?? 0) as num).toInt());
+      }
+      rethrow;
+    }
+  }
 
   // ── لوحة الدعم (المالك فقط) ──
   Future<List<SupportThread>> adminThreads() async {
@@ -77,8 +103,13 @@ class SupportService {
   Future<void> adminReply(String userId, String text) =>
       _dio.post('/api/v1/support/admin/reply', data: {'userId': userId, 'text': text});
 
-  Future<int> announce(String text) async {
-    final res = await _dio.post('/api/v1/support/admin/announce', data: {'text': text});
+  /// بث عام: kind = 'announcement' (إعلان) أو 'admin_broadcast' (رسالة إدارة).
+  Future<int> announce(String text, {String kind = 'announcement', String? imageB64}) async {
+    final res = await _dio.post('/api/v1/support/admin/announce', data: {
+      'text': text,
+      'kind': kind,
+      if (imageB64 != null && imageB64.isNotEmpty) 'image': imageB64,
+    });
     return ((res.data['pushed'] ?? 0) as num).toInt();
   }
 }

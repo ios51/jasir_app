@@ -1,10 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../services/support_service.dart';
 import '../../theme/jasir_theme.dart';
 import '../../widgets/jasir_spinner.dart';
 
-/// «تواصل معنا»: محادثة المستخدم مع فريق الدعم — اقتراح/شكوى/استفسار،
-/// وتظهر فيها ردود الإدارة والإعلانات العامة بشكل مميز.
+/// «تواصل معنا»: نمط رسالة رسمية — المستخدم يكتب موضوعاً ومضموناً
+/// (اقتراح/شكوى/استفسار)، وبعد الإرسال ينتظر ٢٤ ساعة قبل رسالة جديدة.
+/// تظهر ردود الإدارة والإعلانات ورسائل الإدارة العامة بشكل مميز.
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
 
@@ -14,13 +16,11 @@ class SupportScreen extends StatefulWidget {
 
 class _SupportScreenState extends State<SupportScreen> {
   final _service = SupportService();
-  final _ctrl = TextEditingController();
   final _scroll = ScrollController();
   List<SupportMessage> _messages = [];
   bool _loading = true;
   bool _error = false;
   bool _sending = false;
-  String _kind = 'inquiry';
 
   static const _kinds = [
     ('suggestion', 'اقتراح'),
@@ -36,9 +36,30 @@ class _SupportScreenState extends State<SupportScreen> {
 
   @override
   void dispose() {
-    _ctrl.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  /// المتبقي على السماح بالإرسال (٢٤ ساعة من آخر رسالة للمستخدم) —
+  /// null يعني مسموح الآن. السيرفر يفرض الحد أيضاً (هذا للعرض فقط).
+  Duration? get _cooldownRemaining {
+    SupportMessage? lastMine;
+    for (final m in _messages) {
+      if (m.sender == 'user') lastMine = m;
+    }
+    if (lastMine == null) return null;
+    try {
+      final at = DateTime.parse(lastMine.createdAt.replaceFirst(' ', 'T') + 'Z');
+      final elapsed = DateTime.now().toUtc().difference(at);
+      const day = Duration(hours: 24);
+      if (elapsed < day) return day - elapsed;
+    } catch (_) {}
+    return null;
+  }
+
+  String _fmtRemaining(Duration d) {
+    if (d.inHours >= 1) return '${d.inHours} ساعة${d.inMinutes % 60 > 0 ? ' و${d.inMinutes % 60} دقيقة' : ''}';
+    return '${d.inMinutes.clamp(1, 59)} دقيقة';
   }
 
   Future<void> _reload() async {
@@ -66,16 +87,92 @@ class _SupportScreenState extends State<SupportScreen> {
     });
   }
 
-  Future<void> _send() async {
-    final text = _ctrl.text.trim();
-    if (text.isEmpty || _sending) return;
+  /// نافذة إنشاء رسالة: موضوع + مضمون + نوع — تجربة «رسالة» لا محادثة.
+  Future<void> _compose() async {
+    final subjectCtrl = TextEditingController();
+    final bodyCtrl = TextEditingController();
+    String kind = 'inquiry';
+    final sent = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: StatefulBuilder(
+          builder: (ctx, setSheet) => Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text('رسالة إلى فريق جاسر', style: Theme.of(ctx).textTheme.titleMedium, textAlign: TextAlign.center),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final (k, label) in _kinds)
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: kind == k,
+                        onSelected: (_) => setSheet(() => kind = k),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: subjectCtrl,
+                  textAlign: TextAlign.right,
+                  maxLength: 120,
+                  decoration: const InputDecoration(labelText: 'الموضوع', counterText: ''),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: bodyCtrl,
+                  textAlign: TextAlign.right,
+                  minLines: 4,
+                  maxLines: 8,
+                  decoration: const InputDecoration(
+                    labelText: 'المضمون',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () {
+                    if (subjectCtrl.text.trim().isEmpty || bodyCtrl.text.trim().isEmpty) return;
+                    Navigator.pop(ctx, true);
+                  },
+                  icon: const Icon(Icons.send),
+                  label: const Text('إرسال'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (sent != true) {
+      subjectCtrl.dispose();
+      bodyCtrl.dispose();
+      return;
+    }
+    final subject = subjectCtrl.text.trim();
+    final body = bodyCtrl.text.trim();
+    subjectCtrl.dispose();
+    bodyCtrl.dispose();
+    if (subject.isEmpty || body.isEmpty || _sending) return;
     setState(() => _sending = true);
     try {
-      await _service.send(text, kind: _kind);
-      _ctrl.clear();
+      final outcome = await _service.send(subject: subject, text: body, kind: kind);
       await _reload();
-      if (mounted) {
+      if (!mounted) return;
+      if (outcome.ok) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('وصلت رسالتك — نرد عليك في أقرب وقت 🙏')));
+      } else {
+        final d = Duration(minutes: outcome.remainingMinutes);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('تقدر ترسل رسالة جديدة بعد ${_fmtRemaining(d)}')));
       }
     } catch (_) {
       if (mounted) {
@@ -130,47 +227,39 @@ class _SupportScreenState extends State<SupportScreen> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // شريحة نوع الرسالة
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Wrap(
-                      spacing: 6,
+              child: Builder(builder: (context) {
+                final remaining = _cooldownRemaining;
+                if (remaining != null) {
+                  // حد الـ٢٤ ساعة: نعرض المتبقي بدل زر الإرسال
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: cs.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: cs.outlineVariant),
+                    ),
+                    child: Row(
                       children: [
-                        for (final (k, label) in _kinds)
-                          ChoiceChip(
-                            label: Text(label),
-                            selected: _kind == k,
-                            onSelected: (_) => setState(() => _kind = k),
+                        Icon(Icons.hourglass_bottom, size: 18, color: cs.onSurfaceVariant),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'وصلتنا رسالتك 🙏 تقدر ترسل رسالة جديدة بعد ${_fmtRemaining(remaining)}',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                           ),
+                        ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _ctrl,
-                          textAlign: TextAlign.right,
-                          minLines: 1,
-                          maxLines: 4,
-                          decoration: const InputDecoration(hintText: 'اكتب رسالتك لفريق جاسر…'),
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      IconButton.filled(
-                        onPressed: _sending ? null : _send,
-                        icon: const Icon(Icons.send),
-                        style: IconButton.styleFrom(backgroundColor: cs.primary, foregroundColor: cs.onPrimary),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  );
+                }
+                return FilledButton.icon(
+                  onPressed: _sending || _loading ? null : _compose,
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('أرسل رسالة لفريق جاسر'),
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+                );
+              }),
             ),
           ),
         ],
@@ -214,32 +303,51 @@ class _SupportScreenState extends State<SupportScreen> {
         _ => '',
       };
 
+  /// صورة البث (إن وجدت) — من base64 المخزن بالسيرفر.
+  Widget? _broadcastImage(SupportMessage m) {
+    if (m.image.isEmpty) return null;
+    try {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.memory(base64Decode(m.image), fit: BoxFit.cover),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _bubble(SupportMessage m) {
     final cs = Theme.of(context).colorScheme;
     final g = Theme.of(context).extension<JasirGroupColors>()!;
 
-    // إعلان عام: فقاعة كامل العرض بالمعالجة الذهبية
-    if (m.isAnnouncement) {
+    // بث عام (إعلان أو رسالة إدارة): فقاعة كامل العرض
+    if (m.isBroadcast) {
+      final isAnn = m.isAnnouncement;
+      final img = _broadcastImage(m);
       return Container(
         margin: const EdgeInsets.symmetric(vertical: 6),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: cs.tertiaryContainer,
+          // الإعلان بالمعالجة الذهبية — رسالة الإدارة بمعالجة رسمية هادئة
+          color: isAnn ? cs.tertiaryContainer : cs.secondaryContainer,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cs.tertiary.withOpacity(0.4)),
+          border: Border.all(color: (isAnn ? cs.tertiary : cs.secondary).withOpacity(0.4)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(Icons.campaign_outlined, size: 20, color: g.warning),
+                Icon(isAnn ? Icons.campaign_outlined : Icons.mark_email_read_outlined,
+                    size: 20, color: isAnn ? g.warning : cs.secondary),
                 const SizedBox(width: 6),
-                Text('إعلان', style: Theme.of(context).textTheme.titleMedium),
+                Text(isAnn ? 'إعلان' : 'رسالة من الإدارة', style: Theme.of(context).textTheme.titleMedium),
               ],
             ),
+            if (img != null) ...[const SizedBox(height: 10), img],
             const SizedBox(height: 6),
-            Text(m.text, style: TextStyle(color: cs.onTertiaryContainer)),
+            Text(m.text,
+                style: TextStyle(color: isAnn ? cs.onTertiaryContainer : cs.onSecondaryContainer)),
           ],
         ),
       );
@@ -270,6 +378,15 @@ class _SupportScreenState extends State<SupportScreen> {
           else if (_kindLabel(m.kind).isNotEmpty)
             Text(_kindLabel(m.kind),
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(color: cs.onPrimaryContainer.withOpacity(0.7))),
+          // موضوع الرسالة (نمط الرسالة الرسمية)
+          if (m.subject.isNotEmpty) ...[
+            const SizedBox(height: 2),
+            Text(m.subject,
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: fromAdmin ? cs.onSurface : cs.onPrimaryContainer,
+                )),
+          ],
           const SizedBox(height: 2),
           Text(m.text, style: TextStyle(color: fromAdmin ? cs.onSurface : cs.onPrimaryContainer)),
         ],
