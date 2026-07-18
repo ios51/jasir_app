@@ -60,7 +60,7 @@ class _CarServiceLogScreenState extends State<CarServiceLogScreen> {
 
   String _fmtCost(dynamic c) {
     final n = c is num ? c : double.tryParse('${c ?? ''}') ?? 0;
-    return n == 0 ? '—' : '${n.toStringAsFixed(n % 1 == 0 ? 0 : 2)} ريال';
+    return n == 0 ? '—' : '${n.toStringAsFixed(n % 1 == 0 ? 0 : 2)} ⃀';
   }
 
   @override
@@ -97,7 +97,7 @@ class _CarServiceLogScreenState extends State<CarServiceLogScreen> {
                       Text('إجمالي الصرف على الصيانة',
                           style: TextStyle(color: cs.onPrimaryContainer, fontSize: 13)),
                       const SizedBox(height: 4),
-                      Text('${_total(items).toStringAsFixed(_total(items) % 1 == 0 ? 0 : 2)} ريال',
+                      Text('${_total(items).toStringAsFixed(_total(items) % 1 == 0 ? 0 : 2)} ⃀',
                           style: TextStyle(
                               color: cs.onPrimaryContainer,
                               fontSize: 22,

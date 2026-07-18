@@ -63,6 +63,23 @@ class _GenericListScreenState extends State<GenericListScreen> {
   }
 
   Future<void> _runAction(Map<String, dynamic> item, ModuleAction a) async {
+    // تأكيد قبل التنفيذ (قرار المستخدم): السداد وأمثاله ما ينفذ بضغطة وحدة
+    String title = '';
+    try {
+      title = widget.def.titleOf(item);
+    } catch (_) {}
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('تأكيد ${a.label}'),
+        content: Text(title.isNotEmpty ? title : 'متأكد من تنفيذ «${a.label}»؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: Text(a.label)),
+        ],
+      ),
+    );
+    if (sure != true) return;
     try {
       await _svc.action(item['id'] as int, a.verb);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(a.successMsg)));

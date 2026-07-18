@@ -14,6 +14,7 @@ import 'screens/chat_page.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'screens/worship/worship_screen.dart';
 import 'screens/worship/adhkar_reader_screen.dart';
+import 'screens/worship/faidah_screen.dart';
 import 'screens/support/support_screen.dart';
 import 'screens/support/admin_support_screen.dart';
 import 'screens/sports/sports_screen.dart';
@@ -79,8 +80,8 @@ void handleNotificationPayload(String payload, [int attempt = 0]) {
             title: morning ? 'أذكار الصباح' : 'أذكار المساء',
             items: morning ? morningAdhkar : eveningAdhkar)));
   } else if (payload == 'faidah') {
-    // فائدة اليوم تُعرض داخل المحادثة (تبقى في السجل)
-    nav.push(MaterialPageRoute(builder: (_) => const ChatPage(showFaidah: true)));
+    // قرار المستخدم: الإشعار يفتح شاشة الفائدة مباشرة (لا المحادثة)
+    nav.push(MaterialPageRoute(builder: (_) => const FaidahScreen()));
   } else if (payload.startsWith('prayer|')) {
     // ضغط إشعار الأذان: افتح شاشة العبادة (نفس السلوك السابق) وشغّل الأذان
     // الكامل لهذه الصلاة (ضغط صريح → يتجاوز نافذة الـ10 دقائق، ويحترم التفضيلات
