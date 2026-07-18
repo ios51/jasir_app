@@ -271,6 +271,7 @@ class _PersonDebtsScreenState extends State<PersonDebtsScreen> {
   final _service = DebtsService();
   List<Debt> _debts = [];
   bool _loading = true;
+  bool _error = false;
 
   @override
   void initState() {
@@ -285,10 +286,26 @@ class _PersonDebtsScreenState extends State<PersonDebtsScreen> {
       setState(() {
         _debts = d;
         _loading = false;
+        _error = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = true;
+        });
+      }
     }
+  }
+
+  /// إضافة دين جديد لنفس الشخص مباشرة (الاسم معبأ مسبقاً)
+  Future<void> _addForPerson() async {
+    final saved = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+          builder: (_) => DebtFormScreen(
+              knownPersons: [widget.personName], initialPerson: widget.personName)),
+    );
+    if (saved == true) _reload();
   }
 
   /// نافذة السداد: المبلغ (معبأ بالمتبقي — عدّله للجزئي) + التاريخ + ملاحظة
@@ -407,12 +424,35 @@ class _PersonDebtsScreenState extends State<PersonDebtsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: Text(widget.personName)),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _addForPerson,
+        icon: const Icon(Icons.add),
+        label: const Text('دين جديد'),
+      ),
       body: _loading
           ? const Center(child: JasirSpinner())
-          : RefreshIndicator(
+          : _error
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('تعذر تحميل السجل — تحقق من الاتصال أو أن السيرفر محدث',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: cs.onSurfaceVariant)),
+                      const SizedBox(height: 8),
+                      OutlinedButton(
+                          onPressed: () {
+                            setState(() => _loading = true);
+                            _reload();
+                          },
+                          child: const Text('إعادة المحاولة')),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
               onRefresh: _reload,
               child: ListView(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 90),
                 children: [
                   // الملخص التاريخي
                   Container(
@@ -590,7 +630,8 @@ class _PersonDebtsScreenState extends State<PersonDebtsScreen> {
 
 class DebtFormScreen extends StatefulWidget {
   final List<String> knownPersons;
-  const DebtFormScreen({super.key, this.knownPersons = const []});
+  final String? initialPerson; // فتح من شاشة شخص → الاسم معبأ
+  const DebtFormScreen({super.key, this.knownPersons = const [], this.initialPerson});
 
   @override
   State<DebtFormScreen> createState() => _DebtFormScreenState();
@@ -606,6 +647,12 @@ class _DebtFormScreenState extends State<DebtFormScreen> {
   DateTime? _dueDate;
   bool _remind = true;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialPerson != null) _personCtrl.text = widget.initialPerson!;
+  }
 
   @override
   void dispose() {
@@ -665,16 +712,18 @@ class _DebtFormScreenState extends State<DebtFormScreen> {
           const SizedBox(height: 14),
           // الشخص مع إكمال تلقائي من الأسماء السابقة
           Autocomplete<String>(
+            initialValue: TextEditingValue(text: widget.initialPerson ?? ''),
             optionsBuilder: (v) => v.text.isEmpty
                 ? const Iterable<String>.empty()
                 : widget.knownPersons.where((p) => p.contains(v.text)),
             onSelected: (v) => _personCtrl.text = v,
             fieldViewBuilder: (ctx, ctrl, focus, _) {
-              ctrl.addListener(() => _personCtrl.text = ctrl.text);
+              // مزامنة القيمة بلا تكديس مستمعين (ملاحظة مدقق سابقة)
               return TextField(
                 controller: ctrl,
                 focusNode: focus,
                 textAlign: TextAlign.right,
+                onChanged: (v) => _personCtrl.text = v,
                 decoration: const InputDecoration(labelText: 'الشخص'),
               );
             },

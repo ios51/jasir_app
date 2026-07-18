@@ -1,7 +1,7 @@
 name: jasir_app
 description: تطبيق جاسر — المساعد الشخصي الذكي (موديول المواعيد والتذكيرات والمهام)
 publish_to: 'none'
-version: 0.4.0+43
+version: 0.4.1+44
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
