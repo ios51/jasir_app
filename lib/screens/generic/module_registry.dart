@@ -194,7 +194,7 @@ class ModuleRegistry {
     title: 'الديون',
     icon: Icons.account_balance_wallet_outlined,
     path: '/api/v1/debts',
-    titleOf: (m) => '${m['person_name'] ?? ''} — ${m['remaining'] ?? m['amount']} ⃀',
+    titleOf: (m) => '${m['person_name'] ?? ''} — ${m['remaining'] ?? m['amount']} ريال',
     subtitleOf: (m) => '${m['direction'] == 'لي' ? 'لي عند' : 'علي لـ'} ${m['person_name'] ?? ''}'
         '${m['due_date'] != null ? '  •  يستحق: ${m['due_date']}' : ''}',
     actions: const [ModuleAction('سداد كامل', Icons.paid_outlined, 'pay', 'تم تسجيل السداد ✅')],

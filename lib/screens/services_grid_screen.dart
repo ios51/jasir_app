@@ -9,6 +9,7 @@ import 'settings/morning_settings_screen.dart';
 import 'sizes/size_categories_screen.dart';
 import 'shopping/shopping_groups_screen.dart';
 import 'documents/documents_screen.dart';
+import 'debts/debts_screen.dart';
 import 'links/links_grouped_screen.dart';
 import 'sports/sports_screen.dart';
 import 'support/admin_support_screen.dart';
@@ -90,7 +91,7 @@ class _ServicesGridScreenState extends State<ServicesGridScreen>
               Icons.description_outlined, () => const DocumentsScreen()),
           _ServiceTile('debts', 'الديون', 'ديونك ومستحقاتك',
               Icons.account_balance_wallet_outlined,
-              () => GenericListScreen(def: ModuleRegistry.debts)),
+              () => const DebtsScreen()),
           _ServiceTile('shopping', 'مشترياتي', 'قوائم مشتركة + الأسعار',
               Icons.shopping_cart_outlined, () => const ShoppingGroupsScreen()),
           _ServiceTile('schedule', 'جدولي والمحاضرات', 'جدولك الأسبوعي والمحاضرات',

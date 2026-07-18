@@ -1,7 +1,7 @@
 name: jasir_app
 description: تطبيق جاسر — المساعد الشخصي الذكي (موديول المواعيد والتذكيرات والمهام)
 publish_to: 'none'
-version: 0.3.1+42
+version: 0.4.0+43
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -28,6 +28,7 @@ dependencies:
   audioplayers: ^6.8.0
   sign_in_with_apple: ^6.1.4
   local_auth: ^2.3.0
+  flutter_svg: ^2.0.10
 
 dev_dependencies:
   flutter_test:
@@ -45,6 +46,8 @@ flutter:
     # ملف الأذان فقط — لا نصرّح المجلد كاملاً حتى لا يُحزَّم adhan_full.flac
     # المصدر (18MB غير مستخدم بالتشغيل) فيكبر حجم التطبيق بلا داعٍ.
     - assets/sounds/adhan_full.m4a
+    # رمز الريال السعودي الرسمي (SVG من ساما) — الخطوط لا تدعم U+20C0 بعد
+    - assets/riyal.svg
 
 # أيقونة التطبيق تُولَّد وقت البناء من الصورة المصدر (Codemagic يملك الملف كاملاً)
 flutter_launcher_icons:
