@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../services/adhan_player.dart';
 import '../../services/worship_prefs.dart';
 import '../../services/notification_sync.dart';
 import '../../utils/prayer_times.dart';
@@ -185,7 +186,28 @@ class _WorshipScreenState extends State<WorshipScreen> {
                       DropdownMenuItem(value: 'default', child: Text('النغمة الافتراضية')),
                       DropdownMenuItem(value: 'adhan', child: Text('صوت الأذان 🕌')),
                     ],
-                    onChanged: (v) { WorshipPrefs.sound = v ?? 'default'; _persist(); },
+                    onChanged: (v) {
+                      WorshipPrefs.sound = v ?? 'default';
+                      _persist();
+                      // تجربة فورية عند اختيار الأذان (طلب المستخدم — وكان
+                      // مقترح مدقق مؤجلاً): يسمعه قبل ما يعتمد عليه
+                      if (v == 'adhan') {
+                        AdhanPlayer.instance.playFullAdhan();
+                      } else {
+                        AdhanPlayer.instance.stop();
+                      }
+                    },
+                  ),
+                  // زر تجربة/إيقاف صريح بجانب الاختيار
+                  ValueListenableBuilder<bool>(
+                    valueListenable: AdhanPlayer.instance.playing,
+                    builder: (_, isPlaying, __) => TextButton.icon(
+                      onPressed: () => isPlaying
+                          ? AdhanPlayer.instance.stop()
+                          : AdhanPlayer.instance.playFullAdhan(),
+                      icon: Icon(isPlaying ? Icons.stop_circle_outlined : Icons.play_circle_outlined, size: 20),
+                      label: Text(isPlaying ? 'إيقاف الأذان' : 'تجربة الأذان'),
+                    ),
                   ),
                 ]),
               ),

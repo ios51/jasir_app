@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../models/chat_message.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_client.dart';
+import '../services/adhan_player.dart';
 import '../services/chat_service.dart';
 import '../services/chat_media_store.dart';
 import '../services/chat_store.dart';
@@ -770,6 +771,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       newMsgs.add(ChatMessage(text: '...', isMe: false));
     } else {
       for (final r in replies) {
+        // أوامر صوتية من جاسر: «شغّل الأذان» / «أوقف الأذان» (وسم من السيرفر)
+        if (r.text != null && r.text!.contains('[[PLAY_ADHAN]]')) {
+          newMsgs.add(ChatMessage(text: r.text!.replaceAll('[[PLAY_ADHAN]]', ''), isMe: false));
+          AdhanPlayer.instance.playFullAdhan();
+          continue;
+        }
+        if (r.text != null && r.text!.contains('[[STOP_ADHAN]]')) {
+          newMsgs.add(ChatMessage(text: r.text!.replaceAll('[[STOP_ADHAN]]', ''), isMe: false));
+          AdhanPlayer.instance.stop();
+          continue;
+        }
         if (r.isMedia) {
           String? path;
           if (r.bytes != null && (r.mimetype ?? '').startsWith('image/')) {
