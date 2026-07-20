@@ -1,6 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// إشارة تبديل التبويب السفلي: الشاشات المحفوظة في IndexedStack تستمع لها
+/// وتعيد التحميل — يحل «المهمة المضافة من المحادثة ما تظهر إلا بالسحب».
+final ValueNotifier<int> tabSwitchSignal = ValueNotifier<int>(0);
+
 /// تفضيلات الشريط السفلي (الوصول السريع): المستخدم يختار ٣ خدمات تظهر
 /// بجانب تبويب «الرئيسية» الثابت. تُحفظ محلياً كمعرّفات مفصولة بفواصل.
 class NavPrefs {

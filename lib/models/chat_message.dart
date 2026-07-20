@@ -16,6 +16,9 @@ class ChatMessage {
   /// (بايتات الذاكرة لا تُخزَّن في السجل، الملف هو الدائم).
   final String? mediaPath;
 
+  /// صورة من أصول التطبيق (assets) — تستخدمها الجولة التعريفية لصور الأقسام.
+  final String? assetImage;
+
   ChatMessage({
     required this.text,
     required this.isMe,
@@ -24,10 +27,12 @@ class ChatMessage {
     this.mediaMimetype,
     this.mediaFilename,
     this.mediaPath,
+    this.assetImage,
   }) : time = time ?? DateTime.now();
 
-  bool get hasMedia => (mediaBytes != null || mediaPath != null) && mediaMimetype != null;
-  bool get isImage => mediaMimetype?.startsWith('image/') == true;
+  bool get hasMedia =>
+      assetImage != null || ((mediaBytes != null || mediaPath != null) && mediaMimetype != null);
+  bool get isImage => assetImage != null || mediaMimetype?.startsWith('image/') == true;
   bool get isPdf => mediaMimetype == 'application/pdf';
 
   /// للحفظ على الجهاز — النص والاتجاه والوقت، ومسار ملف الوسائط إن وُجد
@@ -38,6 +43,7 @@ class ChatMessage {
         'ts': time.toIso8601String(),
         if (mediaPath != null) 'mp': mediaPath,
         if (mediaPath != null && mediaMimetype != null) 'mm': mediaMimetype,
+        if (assetImage != null) 'ai': assetImage,
       };
 
   factory ChatMessage.fromJson(Map<String, dynamic> j) => ChatMessage(
@@ -46,5 +52,6 @@ class ChatMessage {
         time: DateTime.tryParse((j['ts'] as String?) ?? ''),
         mediaPath: j['mp'] as String?,
         mediaMimetype: j['mm'] as String?,
+        assetImage: j['ai'] as String?,
       );
 }

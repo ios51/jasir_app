@@ -6,6 +6,8 @@ import '../../services/settings_service.dart';
 import '../../services/api_client.dart';
 import '../../services/auth_service.dart';
 import '../../services/bio_lock.dart';
+import '../../services/chat_store.dart';
+import '../login_screen.dart';
 import '../family/medical_files_screen.dart';
 import 'my_profile_screen.dart';
 import 'nav_tabs_screen.dart';
@@ -228,11 +230,85 @@ class _AppSettingsScreenState extends State<AppSettingsScreen> {
                 child: Text('معاينة: صباح الخير، عندك موعد بكرة',
                     style: TextStyle(fontSize: 16 * _tc.fontScale)),
               ),
+              // ── منطقة الخطر: حذف الحساب نهائياً (متطلب أبل + حق المستخدم) ──
+              const SizedBox(height: 24),
+              Card(
+                color: Theme.of(context).colorScheme.errorContainer.withOpacity(0.35),
+                child: ListTile(
+                  leading: Icon(Icons.delete_forever_outlined,
+                      color: Theme.of(context).colorScheme.error),
+                  title: Text('حذف الحساب نهائياً',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  subtitle: const Text('تُحذف كل بياناتك من خوادمنا ولا يمكن التراجع'),
+                  onTap: _deleteAccount,
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// حذف الحساب: تأكيد مزدوج → حذف كل البيانات من السيرفر → خروج لشاشة الدخول
+  Future<void> _deleteAccount() async {
+    final sure1 = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('حذف الحساب نهائياً؟'),
+        content: const Text(
+            'سيُحذف كل شيء من خوادمنا بشكل نهائي:\n\n'
+            '• مواعيدك وتذكيراتك وأدويتك\n'
+            '• مهامك وملاحظاتك وديونك ووثائقك\n'
+            '• بيانات عائلتك وجهات اتصالك\n'
+            '• حسابك بالكامل\n\n'
+            'لا يمكن التراجع عن هذا الإجراء.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('متابعة الحذف', style: TextStyle(color: Theme.of(ctx).colorScheme.error)),
+          ),
+        ],
+      ),
+    );
+    if (sure1 != true || !mounted) return;
+    final sure2 = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('تأكيد أخير'),
+        content: const Text('متأكد تماماً؟ بياناتك ستُحذف الآن ولن نستطيع استرجاعها.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('تراجع')),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: Theme.of(ctx).colorScheme.error,
+                foregroundColor: Theme.of(ctx).colorScheme.onError),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('احذف حسابي نهائياً'),
+          ),
+        ],
+      ),
+    );
+    if (sure2 != true || !mounted) return;
+    try {
+      await ApiClient.instance.dio.delete('/api/v1/account');
+      try { await ChatStore.clear(); } catch (_) {}
+      try { await AuthService().logout(); } catch (_) {}
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('حُذف حسابك وبياناتك نهائياً. نتمنى نشوفك مرة ثانية 🌹')));
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('تعذر الحذف — تحقق من الاتصال وحاول مجدداً')));
+      }
+    }
   }
 
   static String _labelFor(int m) {

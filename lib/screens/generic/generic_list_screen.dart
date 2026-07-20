@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/module_service.dart';
+import '../../services/nav_prefs.dart';
 import 'field_def.dart';
 import 'generic_form_screen.dart';
 
@@ -20,7 +21,19 @@ class _GenericListScreenState extends State<GenericListScreen> {
   @override
   void initState() {
     super.initState();
+    // تحديث عند تبديل التبويب السفلي (الشاشة قد تكون محفوظة في IndexedStack)
+    tabSwitchSignal.addListener(_onTabSwitch);
     _reload();
+  }
+
+  void _onTabSwitch() {
+    if (mounted) _reload();
+  }
+
+  @override
+  void dispose() {
+    tabSwitchSignal.removeListener(_onTabSwitch);
+    super.dispose();
   }
 
   void _reload() {

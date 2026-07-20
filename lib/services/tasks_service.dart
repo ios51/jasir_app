@@ -11,8 +11,9 @@ class TasksResult {
 class TasksService {
   final Dio _dio = ApiClient.instance.dio;
 
-  Future<TasksResult> list() async {
-    final res = await _dio.get('/api/v1/tasks');
+  Future<TasksResult> list({bool includeCompleted = false}) async {
+    final res = await _dio.get('/api/v1/tasks',
+        queryParameters: includeCompleted ? {'all': '1'} : null);
     final owned = (res.data['owned'] as List).map((e) => AppTask.fromJson(e)).toList();
     final shared = (res.data['shared'] as List).map((e) => AppTask.fromJson(e)).toList();
     return TasksResult(owned, shared);

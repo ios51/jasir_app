@@ -16,7 +16,12 @@ import '../services/chat_prefs.dart';
 import '../services/settings_service.dart';
 import '../services/module_service.dart';
 import '../services/notification_service.dart';
+import '../services/tour_prefs.dart';
+import '../data/tour_content.dart';
 import '../data/worship_content.dart';
+import 'generic/module_registry.dart';
+import 'generic/generic_list_screen.dart';
+import 'tasks/tasks_list_screen.dart';
 
 /// شاشة محادثة مباشرة مع جاسر — نفس تجربة واتساب بالضبط، بس داخل التطبيق.
 /// تدعم: نص، تسجيل صوت (المايك)، ورفع صور/PDF ليقرأها جاسر ويحفظ بياناتها.
@@ -55,6 +60,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   bool _recording = false;
 
   String _nick = '';
+
+  // ── الجولة التعريفية (مرة واحدة للمستخدم الجديد) ──────────────────
+  bool _tourActive = false;
+  String? _typingFull; // النص الكامل الجاري «كتابته»
+  String _typingShown = ''; // الجزء الظاهر منه
+  String? _typingImage;
+  Timer? _typingTimer;
+  Completer<void>? _typingDone;
+  List<(String, VoidCallback, bool)> _tourButtons = const []; // (نص، فعل، أساسي؟)
 
   // ترحيب يستخدم اللقب الذي اختاره المستخدم (بدل "أبو جاسر" الثابت)
   String get _welcomeText =>
@@ -103,14 +117,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       _nick = ((s['nickname'] as String?) ?? '').trim();
     } catch (_) {}
     final saved = await ChatStore.load();
+    final tourPending = !(await TourPrefs.isDone());
+    // الكبح مبكراً — قبل أي فرصة لرسالة الصباح/الوارد أن تقاطع الجولة
+    _tourActive = tourPending;
     if (saved.isNotEmpty && mounted) {
       setState(() {
         _messages
           ..clear()
           ..addAll(saved);
       });
-    } else {
-      // أول مرة: اعرض ترحيباً باسم المستخدم (اللقب) بدل الرسالة العامة
+    } else if (!tourPending) {
+      // أول مرة (بعد الجولة أو لمستخدم قديم): ترحيب باسم المستخدم
       if (mounted && _nick.isNotEmpty) {
         setState(() {
           _messages
@@ -119,6 +136,13 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
         });
       }
       _persist(); // احفظ رسالة الترحيب أول مرة
+    } else if (mounted) {
+      // مستخدم جديد: الجولة تتكفل بالترحيب — نصفّي رسالة الافتتاح العامة
+      setState(() => _messages.clear());
+    }
+    if (tourPending) {
+      // الجولة التعريفية (تُستأنف من مكانها لو انقطعت)
+      _maybeStartTour();
     }
     // مهم: نعرض سؤال الدواء فوراً قبل نداءات الشبكة — كان مؤجّلاً خلف
     // await _pullInbox() فيدخل المستخدم ويلقى المحادثة «بدون رسالة» حتى
@@ -148,6 +172,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// يسحب وارد السيرفر (تقرير الأمن، التحليلات...) ويعرضه كرسائل جاسر
   /// داخل المحادثة — تبقى في السجل — ثم يعلّمها مقروءة.
   Future<void> _pullInbox() async {
+    if (_tourActive) return; // لا مقاطعة للجولة التعريفية — يُسحب بعدها
     try {
       final res = await ApiClient.instance.dio.get('/api/v1/inbox/unseen');
       final items = (res.data is List) ? res.data as List : [];
@@ -298,6 +323,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   /// يعرض رسالة الصباح داخل المحادثة (مرّة واحدة يومياً بعد وقتها) —
   /// يحلّ مشكلة "الإشعار يجي والرسالة مو موجودة في التطبيق".
   Future<void> _maybeShowMorning() async {
+    if (_tourActive) return; // الجولة أولاً — الصباحية لها أيامها كلها
     try {
       final force = widget.forceMorning; // فُتحت من إشعار الصباح → اعرض فوراً
       const storage = FlutterSecureStorage();
@@ -329,6 +355,196 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   void _persist() => ChatStore.save(_messages);
+
+  // ════════════════ الجولة التعريفية ════════════════
+  // سكربت مصمم مع محلل سلوك ومستشار نفسي: أول إنجاز خلال ٦٠ ثانية،
+  // إذن الإشعارات بعد درس الأدوية بسياقه، كتابة حية سريعة تكتمل بنقرة.
+
+  Future<void> _maybeStartTour() async {
+    if (await TourPrefs.isDone() || !mounted) return;
+    final saved = await TourPrefs.savedStep();
+    _tourActive = true;
+    if (saved <= 0) {
+      await _tourType(tourWelcome);
+      _setTourButtons([
+        ('يلا نبدأ', () => _tourLesson(0), true),
+        ('أعرف طريقي، ودّني للمحادثة', _tourSkip, false),
+      ]);
+    } else {
+      // استئناف من مكانه (انقطع بنص الجولة)
+      await _tourType('نكمل جولتنا من عند ما وقفنا؟ 😊');
+      final idx = (saved - 1).clamp(0, tourLessons.length - 1);
+      _setTourButtons([
+        ('يلا نكمل', () => _tourLesson(idx), true),
+        ('ودّني للمحادثة', _tourSkip, false),
+      ]);
+    }
+  }
+
+  void _setTourButtons(List<(String, VoidCallback, bool)> btns) {
+    if (!mounted) return;
+    setState(() => _tourButtons = btns);
+    _scrollToBottom();
+  }
+
+  /// «كتابة حية»: النص يظهر تدريجياً (~٦٠ حرفاً/ثانية) — نقرة تكمله فوراً.
+  Future<void> _tourType(String text, {String? image}) async {
+    if (!mounted) return;
+    _typingTimer?.cancel();
+    _typingDone = Completer<void>();
+    setState(() {
+      _typingFull = text;
+      _typingShown = '';
+      _typingImage = image;
+      _tourButtons = const [];
+    });
+    _scrollToBottom();
+    int i = 0;
+    _typingTimer = Timer.periodic(const Duration(milliseconds: 30), (t) {
+      i += 2; // ~66 حرفاً/ثانية
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      if (i >= text.length) {
+        t.cancel();
+        setState(() => _typingShown = text);
+        if (!(_typingDone?.isCompleted ?? true)) _typingDone!.complete();
+      } else {
+        setState(() => _typingShown = text.substring(0, i));
+      }
+    });
+    await _typingDone!.future;
+    if (!mounted) return;
+    setState(() {
+      _messages.add(ChatMessage(text: text, isMe: false, assetImage: image));
+      _typingFull = null;
+      _typingShown = '';
+      _typingImage = null;
+    });
+    _persist();
+    _scrollToBottom();
+    await Future.delayed(const Duration(milliseconds: 250));
+  }
+
+  /// نقرة على المحادثة أثناء الكتابة الحية → إظهار النص كاملاً فوراً
+  void _completeTypingNow() {
+    if (_typingFull == null) return;
+    _typingTimer?.cancel();
+    setState(() => _typingShown = _typingFull!);
+    if (!(_typingDone?.isCompleted ?? true)) _typingDone!.complete();
+  }
+
+  Future<void> _tourLesson(int idx) async {
+    if (idx >= tourLessons.length) return _tourFinale();
+    final l = tourLessons[idx];
+    await TourPrefs.saveStep(idx + 1);
+    await _tourType(l.message, image: l.image);
+    _lessonButtons(idx, withMore: true);
+  }
+
+  void _lessonButtons(int idx, {required bool withMore}) {
+    final l = tourLessons[idx];
+    _setTourButtons([
+      ('جرّبه الآن ✨', () => _tourTryNow(idx), true),
+      if (withMore) ('اشرح أكثر', () => _tourMore(idx), false),
+      ('كمّل ⟵', () => _tourNext(idx), false),
+    ]);
+  }
+
+  Future<void> _tourMore(int idx) async {
+    await _tourType(tourLessons[idx].more);
+    _lessonButtons(idx, withMore: false);
+  }
+
+  Future<void> _tourTryNow(int idx) async {
+    final key = tourLessons[idx].key;
+    if (key == 'appointments') {
+      // أول إنجاز: مثال جاهز يلصق نفسه ويتسجل — لحظة «شفت كيف؟»
+      _setTourButtons([
+        ('جرّب بمثال جاهز', _tourSampleDemo, true),
+        ('كمّل ⟵', () => _tourNext(idx), false),
+      ]);
+      return;
+    }
+    // بقية الأقسام: نفتح القسم نفسه وعند الرجوع نكمل
+    Widget Function()? builder;
+    if (key == 'meds') builder = () => GenericListScreen(def: ModuleRegistry.meds);
+    if (key == 'tasks') builder = () => const TasksListScreen();
+    if (key == 'lectures') builder = () => GenericListScreen(def: ModuleRegistry.schedule);
+    if (builder != null) {
+      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => builder!()));
+    }
+    if (mounted) _lessonButtons(idx, withMore: false);
+  }
+
+  Future<void> _tourSampleDemo() async {
+    if (!mounted) return;
+    setState(() {
+      _tourButtons = const [];
+      _messages.add(ChatMessage(text: tourSampleAppointment, isMe: true));
+    });
+    _persist();
+    _scrollToBottom();
+    await Future.delayed(const Duration(milliseconds: 600));
+    await _tourType(tourSampleReply);
+    _setTourButtons([('كمّل ⟵', () => _tourNext(0), true)]);
+  }
+
+  Future<void> _tourNext(int idx) async {
+    // بعد درس الأدوية (الثاني): طلب إذن الإشعارات بسياقه — توقيت الخبير
+    if (tourLessons[idx].key == 'meds') return _tourAskNotif();
+    if (idx + 1 < tourLessons.length) return _tourLesson(idx + 1);
+    return _tourFinale();
+  }
+
+  Future<void> _tourAskNotif() async {
+    await _tourType(tourNotifAsk);
+    _setTourButtons([
+      ('تمام، فعّلها 🔔', () async {
+        _setTourButtons(const []);
+        try {
+          await NotificationService.requestPermission();
+        } catch (_) {}
+        _tourLesson(2); // المهام
+      }, true),
+      ('بعدين', () async {
+        _setTourButtons(const []);
+        await _tourType(tourNotifLater);
+        _tourLesson(2);
+      }, false),
+    ]);
+  }
+
+  Future<void> _tourFinale() async {
+    await TourPrefs.markDone();
+    await _tourType(tourOthers);
+    await _tourType(tourFinale);
+    _setTourButtons([
+      ('عندي موعد 📅', () => _tourHandoff('أبي أسجل موعداً جديداً'), true),
+      ('عندي دواء 💊', () => _tourHandoff('أبي أضيف دواءً جديداً'), true),
+      ('أبي أسولف بس 💬', () {
+        _setTourButtons(const []);
+        setState(() => _tourActive = false);
+      }, false),
+    ]);
+  }
+
+  /// تسليم للذكاء الحقيقي بفعل جاهز — ما نترك المستخدم أمام صمت
+  void _tourHandoff(String text) {
+    _setTourButtons(const []);
+    setState(() => _tourActive = false);
+    _controller.text = text;
+    _send();
+  }
+
+  Future<void> _tourSkip() async {
+    await TourPrefs.markDone();
+    _setTourButtons(const []);
+    if (!mounted) return;
+    setState(() => _tourActive = false);
+    await _tourType('على راحتك 🤝 أنا هنا متى ما احتجتني — أمرني إيش أخدمك فيه؟');
+  }
 
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -608,6 +824,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     ChatPrefs.clearSignal.removeListener(_onClearRequested);
+    _typingTimer?.cancel();
+    if (!(_typingDone?.isCompleted ?? true)) _typingDone!.complete();
     _controller.dispose();
     _scrollController.dispose();
     _recSub?.cancel();
@@ -665,6 +883,17 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   Widget _mediaContent(ChatMessage m) {
+    // صور الجولة التعريفية (من أصول التطبيق)
+    if (m.assetImage != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.asset(
+          m.assetImage!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+        ),
+      );
+    }
     if (m.isImage) {
       // من الذاكرة إن توفرت، وإلا من الملف المحفوظ (بعد إعادة تشغيل التطبيق)
       final Widget img = m.mediaBytes != null
@@ -740,13 +969,24 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
               // واللمس على أي مكان خارج حقل الكتابة يُنزله أيضاً.
               child: GestureDetector(
                 behavior: HitTestBehavior.translucent,
-                onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+                onTap: () {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  _completeTypingNow(); // نقرة أثناء الكتابة الحية = النص كاملاً
+                },
                 child: ListView.builder(
             controller: _scrollController,
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.symmetric(vertical: 12),
-            itemCount: _messages.length + (_sending ? 1 : 0),
+            itemCount: _messages.length + (_sending ? 1 : 0) + (_typingFull != null ? 1 : 0),
             itemBuilder: (context, i) {
+              if (_typingFull != null && i == _messages.length) {
+                // فقاعة «جاسر يكتب...» الحية للجولة التعريفية
+                return _bubble(ChatMessage(
+                  text: _typingShown.isEmpty ? '…' : _typingShown,
+                  isMe: false,
+                  assetImage: _typingShown.length == _typingFull!.length ? _typingImage : null,
+                ));
+              }
               if (i >= _messages.length) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16, vertical: 6),
@@ -763,6 +1003,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             ),
           ),
         ),
+        // أزرار الجولة التعريفية (الزر الأساسي بارز، والثانوي خافت)
+        if (_tourButtons.isNotEmpty)
+          SafeArea(
+            top: false,
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final (label, action, primary) in _tourButtons)
+                    primary
+                        ? FilledButton(onPressed: action, child: Text(label))
+                        : TextButton(
+                            onPressed: action,
+                            child: Text(label,
+                                style: TextStyle(
+                                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          ),
+                ],
+              ),
+            ),
+          ),
         // زرا تأكيد الجرعة داخل المحادثة (يظهران فقط عند فتحها من إشعار دواء)
         if (_medPromptId != null)
           SafeArea(

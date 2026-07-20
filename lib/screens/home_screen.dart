@@ -139,7 +139,12 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: NavigationBar(
         backgroundColor: cs.surface,
         selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        onDestinationSelected: (i) {
+          setState(() => _index = i);
+          // إشارة للشاشات المحفوظة بالذاكرة لتعيد التحميل — تحل
+          // «المهمة المضافة بالمحادثة ما تظهر بالتبويب إلا بعد طلعة ورجعة»
+          tabSwitchSignal.value++;
+        },
         destinations: [
           const NavigationDestination(
               icon: Icon(Icons.home_outlined),
